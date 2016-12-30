@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.geometry.Pos?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+	fx:controller="lingo.client.bootstrap.LingoPresenter"
+	fx:id="content"
+	prefWidth="650"
+	prefHeight="420">
+
+	<center>
+		<BorderPane fx:id="gameModeChooser">
+			<center>
+				<VBox spacing="20" alignment="CENTER">
+					<children>
+						<Button text="Practice" onAction="#showSinglePlayer" prefWidth="350" styleClass="game-mode" />
+						<Button text="Multiplayer" onAction="#showMultiplayer" prefWidth="350" styleClass="game-mode" />
+					</children>
+				</VBox>
+			</center>
+			<bottom>
+				<Button text="Exit" onAction="#exit" prefWidth="50" styleClass="game-nav">
+					<BorderPane.alignment>
+						<Pos fx:value="BOTTOM_LEFT" />
+					</BorderPane.alignment>
+					<BorderPane.margin>
+						<Insets bottom="10" left="10" />
+					</BorderPane.margin>
+				</Button>
+			</bottom>
+		</BorderPane>
+	</center>
+
+</BorderPane>

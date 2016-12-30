@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.geometry.Pos?>
+<?import javafx.scene.canvas.Canvas?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.web.WebView?>
+
+<StackPane xmlns:fx="http://javafx.com/fxml"
+	fx:controller="lingo.client.multiplayer.MultiplayerPresenter"
+	fx:id="contentPane">
+
+	<children>
+		<Canvas fx:id="canvas" width="650" height="420" onKeyPressed="#keyPressed" />
+		<WebView fx:id="webView" prefWidth="650" prefHeight="420" />
+		<Button fx:id="backButton" text="Back" prefWidth="50" styleClass="game-nav">
+			<StackPane.alignment>
+				<Pos fx:value="BOTTOM_LEFT" />
+			</StackPane.alignment>
+			<StackPane.margin>
+				<Insets bottom="10" left="10" />
+			</StackPane.margin>
+		</Button>
+	</children>
+
+</StackPane>

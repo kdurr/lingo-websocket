@@ -1,0 +1,12 @@
+.text {
+	-fx-font-family: Helvetica;
+	-fx-font-smoothing-type: gray;
+}
+
+.game-mode {
+	-fx-font-size: 24px;
+}
+
+.game-nav {
+	-fx-font-size: 12px;
+}
