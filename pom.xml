@@ -21,10 +21,20 @@
 	</properties>
 
 	<modules>
-		<module>client</module>
 		<module>client-api</module>
 		<module>common</module>
 		<module>server</module>
 	</modules>
+
+	<profiles>
+		<!-- Prevent client module from building on Heroku -->
+		<!-- Heroku's JDKs are headless -->
+		<profile>
+			<id>javafx</id>
+			<modules>
+				<module>client</module>
+			</modules>
+		</profile>
+	</profiles>
 
 </project>

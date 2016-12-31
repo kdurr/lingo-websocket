@@ -46,6 +46,17 @@
 					<!-- Add src/main/config to the classpath -->
 					<folders>src/main/config</folders>
 				</configuration>
+				<executions>
+					<!-- Repackage as executable JAR (java -jar) -->
+					<execution>
+						<goals>
+							<goal>repackage</goal>
+						</goals>
+						<configuration>
+							<finalName>${project.artifactId}</finalName>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
