@@ -1,7 +1,7 @@
 # http://docs.spring.io/spring-boot/docs/current/reference/html/common-application-properties.html
 
-server:
-  host: localhost
-  port: 8080
-  stomp:
-    endpoint: stomp
+# Development
+#web.socket.url: ws://localhost:8080/stomp
+
+# Production
+web.socket.url: ws://lingo.charego.com/stomp

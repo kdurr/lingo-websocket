@@ -25,14 +25,8 @@ public class StompTemplate {
 
 	private static final Logger log = LoggerFactory.getLogger(StompTemplate.class);
 
-	@Value("${server.host}")
-	private String host;
-
-	@Value("${server.port}")
-	private int port;
-
-	@Value("${server.stomp.endpoint}")
-	private String stompEndpoint;
+	@Value("${web.socket.url}")
+	private String webSocketUrl;
 
 	@Autowired
 	private ExecutorService executorService;
@@ -54,8 +48,7 @@ public class StompTemplate {
 
 	@PostConstruct
 	private void postConstruct() {
-		final String url = String.format("ws://%s:%d/%s", host, port, stompEndpoint);
-		executorService.execute(() -> stompClient.connect(url, new WebSocketSessionHandler()));
+		executorService.execute(() -> stompClient.connect(webSocketUrl, new WebSocketSessionHandler()));
 		new Thread(new WebSocketSessionListener()).start();
 	}
 

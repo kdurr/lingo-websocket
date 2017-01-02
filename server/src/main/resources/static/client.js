@@ -31,10 +31,9 @@ function main() {
 	reset();
 	repaint();
 
-	client = Stomp.over(new SockJS('/sockjs'));
+	client = Stomp.over(new SockJS('/stomp'));
 
 	client.connect({}, function(frame) {
-		console.log('Connected: ' + frame);
 		subscribeToOpponentJoined();
 		subscribeToOpponentLeft();
 		subscribeToOpponentReports();
