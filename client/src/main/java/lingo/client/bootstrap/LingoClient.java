@@ -13,6 +13,7 @@ import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 @SpringBootApplication
@@ -41,6 +42,7 @@ public class LingoClient extends Application {
 		});
 		Scene scene = new Scene(root);
 		scene.getStylesheets().add("/style.css");
+		stage.getIcons().add(new Image(getClass().getResourceAsStream("/lingo.png")));
 		stage.setResizable(false);
 		stage.setScene(scene);
 		stage.setTitle("Lingo");
