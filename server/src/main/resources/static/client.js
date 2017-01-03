@@ -258,7 +258,7 @@ function repaint() {
 	drawLastWord();
 }
 
-function reset(firstLetter) {
+function reset(firstLetter, clearScore) {
 	if (!firstLetter) {
 		firstLetter = '';
 	}
@@ -267,6 +267,10 @@ function reset(firstLetter) {
 	myProgress = [firstLetter, '', '', '', ''];
 	myResults = [];
 	opponentResults = [];
+	if (clearScore) {
+		myScore = 0;
+		opponentScore = 0;
+	}
 }
 
 function subscribeToOpponentJoined() {
@@ -275,7 +279,7 @@ function subscribeToOpponentJoined() {
 		var firstLetter = report[0];
 		opponentUsername = report[1];
 		console.log('Opponent username: ' + opponentUsername);
-		reset(firstLetter);
+		reset(firstLetter, true);
 		gameDiv.classList.remove('hidden');
 		waitingDiv.classList.add('hidden');
 		repaint();
@@ -301,7 +305,7 @@ function subscribeToOpponentReports() {
 			console.log('Opponent guessed correctly! ' + guess);
 			opponentScore = opponentScore + 100;
 			lastWord = guess;
-			reset(firstLetter);
+			reset(firstLetter, false);
 			repaint();
 		} else {
 			var result = report.result;
@@ -322,7 +326,7 @@ function subscribeToPlayerReports() {
 			console.log('I guessed correctly!');
 			myScore = myScore + 100;
 			lastWord = guess;
-			reset(firstLetter);
+			reset(firstLetter, false);
 			repaint();
 		} else {
 			var guess = report.guess;
