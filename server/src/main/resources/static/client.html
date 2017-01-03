@@ -3,13 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <title>Lingo</title>
+<link rel="stylesheet" href="//unpkg.com/bootstrap/dist/css/bootstrap.min.css">
 <link rel="stylesheet" href="client.css">
 </head>
 <body>
-	<div id="gameDiv" class="hidden">
-		<canvas id="canvas" width="600" height="425"></canvas>
+	<div id="usernameDiv" class="container" style="padding-top: 20px">
+		<div class="jumbotron">
+			<p>Choose your username.<p>
+			<form>
+				<div class="form-group">
+					<input id="username" type="text" class="form-control" maxlength="16" placeholder="Username">
+				</div>
+				<button id="usernameButton" type="button" class="btn btn-default">Go</button>
+			</form>
+		</div>
 	</div>
-	<div id="waitingDiv">
+	<div id="gameDiv" class="hidden">
+		<canvas id="canvas" width="600" height="475"></canvas>
+	</div>
+	<div id="waitingDiv" class="hidden">
 		<h1>Waiting for Opponent</h1>
 		<!-- Based on http://tobiasahlin.com/spinkit -->
 		<div class="sk-cube-grid">

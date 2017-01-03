@@ -1,7 +1,7 @@
 var HEIGHT = 300;
 var WIDTH = 250;
 var SIDE = 50;
-var MARGIN_TOP = 50;
+var MARGIN_TOP = 100;
 var MARGIN_BOTTOM = 75;
 
 var myScore = 0;
@@ -9,11 +9,14 @@ var myGuess;
 var myGuesses;
 var myProgress;
 var myResults;
+var myUsername;
 var opponentScore = 0;
 var opponentResults;
+var opponentUsername;
 var lastWord;
 
-var canvasDiv = document.getElementById('canvasDiv');
+var usernameDiv = document.getElementById('usernameDiv');
+var gameDiv = document.getElementById('gameDiv');
 var waitingDiv = document.getElementById('waitingDiv');
 var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
@@ -21,6 +24,33 @@ var ctx = canvas.getContext('2d');
 var client;
 
 function main() {
+	var submitUsernameFunction = function() {
+		myUsername = usernameInput.value;
+		localStorage.setItem('lingo.username', myUsername);
+		console.log('My username: ' + myUsername);
+		start();
+		usernameDiv.classList.add('hidden');
+		waitingDiv.classList.remove('hidden');
+	}
+	var usernameInput = document.getElementById('username');
+	var usernameButton = document.getElementById('usernameButton');
+	usernameButton.addEventListener('click', submitUsernameFunction);
+	usernameInput.focus();
+	usernameInput.addEventListener('keydown', function(e) {
+		if (e.keyCode === 13) {
+			e.preventDefault();
+			submitUsernameFunction();
+		}
+	});
+	var storedUsername = localStorage.getItem('lingo.username');
+	if (storedUsername === null) {
+		usernameInput.value = 'Alex Trebek';
+	} else {
+		usernameInput.value = storedUsername;
+	}
+}
+
+function start() {
 	ctx.font = '25px Monospace';
 	ctx.textBaseline = 'middle';
 	ctx.textAlign = 'center';
@@ -38,7 +68,7 @@ function main() {
 		subscribeToOpponentLeft();
 		subscribeToOpponentReports();
 		subscribeToPlayerReports();
-		client.send('/app/lingo/join');
+		client.send('/app/lingo/join', {}, myUsername);
 	});
 }
 
@@ -81,6 +111,7 @@ function addKeypressListener() {
 
 function drawMyBoard() {
 	var x = 25, y = MARGIN_TOP;
+	drawUsername(x, y, myUsername);
 	drawScore(x, y, myScore);
 	drawInput(x, y, myGuess);
 	var yStart = drawGuesses(x, y, myGuesses, myResults);
@@ -90,6 +121,7 @@ function drawMyBoard() {
 
 function drawOpponentBoard() {
 	var x = 325, y = MARGIN_TOP;
+	drawUsername(x, y, opponentUsername);
 	drawScore(x, y, opponentScore);
 	drawResults(x, y, opponentResults);
 	drawGrid(x, y);
@@ -104,9 +136,16 @@ function drawLastWord() {
 	}
 }
 
+function drawUsername(x, y, username) {
+	var usernameX = x + WIDTH / 2;
+	var usernameY = y - 60;
+	ctx.fillStyle = 'black';
+	ctx.fillText(username, usernameX, usernameY);
+}
+
 function drawScore(x, y, score) {
 	var scoreX = x + WIDTH / 2;
-	var scoreY = y / 2;
+	var scoreY = y - 25;
 	ctx.fillStyle = 'black';
 	ctx.fillText(score, scoreX, scoreY);
 }
@@ -232,7 +271,10 @@ function reset(firstLetter) {
 
 function subscribeToOpponentJoined() {
 	client.subscribe('/user/topic/lingo/opponentJoined', function(message) {
-		var firstLetter = message.body;
+		var report = JSON.parse(message.body);
+		var firstLetter = report[0];
+		opponentUsername = report[1];
+		console.log('Opponent username: ' + opponentUsername);
 		reset(firstLetter);
 		gameDiv.classList.remove('hidden');
 		waitingDiv.classList.add('hidden');
@@ -242,6 +284,7 @@ function subscribeToOpponentJoined() {
 
 function subscribeToOpponentLeft() {
 	client.subscribe('/user/topic/lingo/opponentLeft', function(message) {
+		opponentUsername = null;
 		lastWord = null;
 		gameDiv.classList.add('hidden');
 		waitingDiv.classList.remove('hidden');

@@ -45,6 +45,8 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 
 	private final Map<String, Game> gameBySession = new HashMap<>();
 
+	private final Map<String, String> usernameBySession = new HashMap<>();
+
 	@MessageMapping("/guess")
 	public void guess(String guess, @Header(SESSION_ID_HEADER) String sessionId) {
 		guess = guess.toUpperCase();
@@ -75,8 +77,9 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	}
 
 	@MessageMapping("/join")
-	public void join(@Header(SESSION_ID_HEADER) String sessionId) {
-		log.info("Player {} joined", sessionId);
+	public void join(String username, @Header(SESSION_ID_HEADER) String sessionId) {
+		log.info("Player joined: {}, {}", sessionId, username);
+		usernameBySession.put(sessionId, username);
 		joinWaitingList(sessionId);
 	}
 
@@ -90,6 +93,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	}
 
 	private void leave(String sessionId) {
+		usernameBySession.remove(sessionId);
 		final Game game = gameBySession.remove(sessionId);
 		if (game == null) {
 			leaveWaitingList(sessionId);
@@ -170,8 +174,12 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 				final String firstWord = game.newGame();
 				final String firstLetter = String.valueOf(firstWord.charAt(0));
 				log.info("First word: {}", firstWord);
-				sendToUser(playerOne, StompTopics.OPPONENT_JOINED, firstLetter);
-				sendToUser(playerTwo, StompTopics.OPPONENT_JOINED, firstLetter);
+				final String playerOneUsername = usernameBySession.get(playerOne);
+				final String playerTwoUsername = usernameBySession.get(playerTwo);
+				final String[] playerOneMessage = new String[] { firstLetter, playerTwoUsername };
+				final String[] playerTwoMessage = new String[] { firstLetter, playerOneUsername };
+				sendToUser(playerOne, StompTopics.OPPONENT_JOINED, playerOneMessage);
+				sendToUser(playerTwo, StompTopics.OPPONENT_JOINED, playerTwoMessage);
 			}
 		}
 	}
