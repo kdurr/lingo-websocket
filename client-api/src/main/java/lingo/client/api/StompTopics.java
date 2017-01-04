@@ -10,6 +10,10 @@ public class StompTopics {
 
 	public static final String PLAYER_REPORTS = createTopicName("playerReports");
 
+	public static final String PRACTICE_GAME = createTopicName("practiceGame");
+
+	public static final String PRACTICE_REPORTS = createTopicName("practiceReports");
+
 	private static String createTopicName(String suffix) {
 		return "/topic/lingo/" + suffix;
 	}

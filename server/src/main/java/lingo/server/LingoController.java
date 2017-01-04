@@ -45,6 +45,8 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 
 	private final Map<String, Game> gameBySession = new HashMap<>();
 
+	private final Map<String, Game> practiceBySession = new HashMap<>();
+
 	private final Map<String, String> usernameBySession = new HashMap<>();
 
 	@MessageMapping("/guess")
@@ -136,6 +138,39 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	@PostConstruct
 	private void postConstruct() {
 		new Thread(new WaitingListListener()).start();
+	}
+
+	@MessageMapping("/practiceGame")
+	public void practiceGame(@Header(SESSION_ID_HEADER) String sessionId) {
+		log.info("Player wants a practice session: {}", sessionId);
+		final Game game = new Game(sessionId, null, wordRepo.getWords(), wordRepo.getGuesses());
+		practiceBySession.put(sessionId, game);
+		final String firstWord = game.newGame();
+		final String firstLetter = String.valueOf(firstWord.charAt(0));
+		log.info("First word: {}", firstWord);
+		sendToUser(sessionId, StompTopics.PRACTICE_GAME, firstLetter);
+	}
+
+	@MessageMapping("/practiceGuess")
+	public void practiceGuess(String guess, @Header(SESSION_ID_HEADER) String sessionId) {
+		guess = guess.toUpperCase();
+		log.info("Player {} guessed: {}", sessionId, guess);
+		final Game game = practiceBySession.get(sessionId);
+		final int[] result = game.evaluate(guess);
+
+		// Generate report
+		final Report report = new Report();
+		report.setGuess(guess);
+		if (Game.isCorrect(result)) {
+			final String newWord = game.newWord();
+			final String firstLetter = String.valueOf(newWord.charAt(0));
+			log.info("New word: {}", newWord);
+			report.setCorrect(true);
+			report.setFirstLetter(firstLetter);
+		} else {
+			report.setResult(result);
+		}
+		sendToUser(sessionId, StompTopics.PRACTICE_REPORTS, report);
 	}
 
 	private void sendToUser(String user, String destination, Object payload) {
