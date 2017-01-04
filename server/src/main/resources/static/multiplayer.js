@@ -1,3 +1,6 @@
+var KEYCODE_BACKSPACE = 8;
+var KEYCODE_RETURN = 13;
+
 var HEIGHT = 300;
 var WIDTH = 250;
 var SIDE = 50;
@@ -15,15 +18,16 @@ var opponentResults;
 var opponentUsername;
 var lastWord;
 
-var usernameDiv = document.getElementById('usernameDiv');
 var canvasDiv = document.getElementById('canvasDiv');
 var waitingDiv = document.getElementById('waitingDiv');
+var messageDiv = document.getElementById('messageDiv');
 var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
 
 var client;
 
 function main() {
+	var usernameDiv = document.getElementById('usernameDiv');
 	var submitUsernameFunction = function() {
 		myUsername = usernameInput.value;
 		localStorage.setItem('lingo.username', myUsername);
@@ -31,13 +35,14 @@ function main() {
 		start();
 		usernameDiv.classList.add('hidden');
 		waitingDiv.classList.remove('hidden');
+		messageDiv.classList.remove('hidden');
 	}
 	var usernameInput = document.getElementById('username');
 	var usernameButton = document.getElementById('usernameButton');
 	usernameButton.addEventListener('click', submitUsernameFunction);
 	usernameInput.focus();
 	usernameInput.addEventListener('keydown', function(e) {
-		if (e.keyCode === 13) {
+		if (e.keyCode === KEYCODE_RETURN) {
 			e.preventDefault();
 			submitUsernameFunction();
 		}
@@ -57,6 +62,7 @@ function start() {
 
 	addKeydownListener();
 	addKeypressListener();
+	addChatMessageListener();
 
 	reset();
 	repaint();
@@ -64,6 +70,7 @@ function start() {
 	client = Stomp.over(new SockJS('/stomp'));
 
 	client.connect({}, function(frame) {
+		subscribeToChatMessages();
 		subscribeToOpponentJoined();
 		subscribeToOpponentLeft();
 		subscribeToOpponentReports();
@@ -74,15 +81,13 @@ function start() {
 
 // special keys
 function addKeydownListener() {
-	document.addEventListener('keydown', function(e) {
-		// backspace
-		if (e.which === 8) {
+	canvasDiv.addEventListener('keydown', function(e) {
+		if (e.which === KEYCODE_BACKSPACE) {
 			myGuess = myGuess.substr(0, myGuess.length - 1);
 			repaint();
 			e.preventDefault();
 		}
-		// return
-		else if (e.which === 13) {
+		else if (e.which === KEYCODE_RETURN) {
 			if (myGuess.length === 5) {
 				client.send("/app/lingo/guess", {}, myGuess);
 				myGuess = '';
@@ -94,7 +99,7 @@ function addKeydownListener() {
 
 // characters
 function addKeypressListener() {
-	document.addEventListener('keypress', function(e) {
+	canvasDiv.addEventListener('keypress', function(e) {
 		var charCode = e.charCode;
 		if (isCharacter(charCode)) {
 			if (isCharacterLowercase(charCode)) {
@@ -107,6 +112,31 @@ function addKeypressListener() {
 			}
 		}
 	});
+}
+
+function addChatMessageListener() {
+	var messageInput = document.getElementById('messageInput');
+	messageInput.addEventListener('keydown', function(e) {
+		if (e.which === KEYCODE_RETURN) {
+			var text = messageInput.value;
+			messageInput.value = '';
+			client.send('/app/lingo/chat', {}, text);
+			addChatMessage('Me', text);
+		}
+	});
+}
+
+function addChatMessage(sender, body) {
+	var messageList = document.getElementById('messageList');
+	var usernameNode = document.createElement('strong');
+	var usernameTextNode = document.createTextNode(sender)
+	usernameNode.appendChild(usernameTextNode);
+	var messageTextNode = document.createTextNode(' ' + body);
+	var chatMessage = document.createElement('div');
+	chatMessage.setAttribute('class', 'list-group-item');
+	chatMessage.appendChild(usernameNode);
+	chatMessage.appendChild(messageTextNode);
+	messageList.appendChild(chatMessage);
 }
 
 function drawMyBoard() {
@@ -271,6 +301,20 @@ function reset(firstLetter, clearScore) {
 		myScore = 0;
 		opponentScore = 0;
 	}
+}
+
+function subscribeToChatMessages() {
+	client.subscribe('/topic/lingo/chat', function(message) {
+		var chatMessage = JSON.parse(message.body);
+		var messageSender = chatMessage.username;
+		var messageBody = chatMessage.message;
+		if (messageSender === myUsername) {
+			console.log('Ignoring message sent by myself')
+		} else {
+			console.log('Message from ' + messageSender + ": " + messageBody);
+			addChatMessage(messageSender, messageBody);
+		}
+	});
 }
 
 function subscribeToOpponentJoined() {

@@ -26,6 +26,7 @@ import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import lingo.client.api.StompTopics;
+import lingo.common.ChatMessage;
 import lingo.common.Game;
 import lingo.common.Report;
 
@@ -48,6 +49,12 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	private final Map<String, Game> practiceBySession = new HashMap<>();
 
 	private final Map<String, String> usernameBySession = new HashMap<>();
+
+	@MessageMapping("/chat")
+	public ChatMessage chat(String message, @Header(SESSION_ID_HEADER) String sessionId) {
+		final String username = usernameBySession.get(sessionId);
+		return new ChatMessage(username, message);
+	}
 
 	@MessageMapping("/guess")
 	public void guess(String guess, @Header(SESSION_ID_HEADER) String sessionId) {
