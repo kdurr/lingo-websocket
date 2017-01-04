@@ -16,7 +16,7 @@ var opponentUsername;
 var lastWord;
 
 var usernameDiv = document.getElementById('usernameDiv');
-var gameDiv = document.getElementById('gameDiv');
+var canvasDiv = document.getElementById('canvasDiv');
 var waitingDiv = document.getElementById('waitingDiv');
 var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
@@ -280,7 +280,7 @@ function subscribeToOpponentJoined() {
 		opponentUsername = report[1];
 		console.log('Opponent username: ' + opponentUsername);
 		reset(firstLetter, true);
-		gameDiv.classList.remove('hidden');
+		canvasDiv.classList.remove('hidden');
 		waitingDiv.classList.add('hidden');
 		repaint();
 	});
@@ -290,7 +290,7 @@ function subscribeToOpponentLeft() {
 	client.subscribe('/user/topic/lingo/opponentLeft', function(message) {
 		opponentUsername = null;
 		lastWord = null;
-		gameDiv.classList.add('hidden');
+		canvasDiv.classList.add('hidden');
 		waitingDiv.classList.remove('hidden');
 		repaint();
 	});
