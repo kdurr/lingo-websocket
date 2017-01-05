@@ -1,8 +1,8 @@
 /* Based on http://tobiasahlin.com/spinkit */
 
 .sk-cube-grid {
-  width: 200px;
-  height: 200px;
+  width: 300px;
+  height: 300px;
   margin: 35px auto;
 }
 
@@ -11,8 +11,8 @@
   height: 20%;
   background-color: orange;
   float: left;
-  -webkit-animation: sk-cubeGridScaleDelay 1.5s infinite ease-in-out;
-          animation: sk-cubeGridScaleDelay 1.5s infinite ease-in-out;
+  -webkit-animation: sk-cubeGridScaleDelay 1.3s infinite ease-in-out;
+          animation: sk-cubeGridScaleDelay 1.3s infinite ease-in-out;
 }
 
 /*
