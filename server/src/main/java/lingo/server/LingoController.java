@@ -231,7 +231,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 				final String[] playerTwoMessage = new String[] { firstLetter, playerOneUsername };
 				sendToUser(playerOne, StompTopics.OPPONENT_JOINED, playerOneMessage);
 				sendToUser(playerTwo, StompTopics.OPPONENT_JOINED, playerTwoMessage);
-				sendAnnouncement(playerOneUsername + " is playing against " + playerTwoUsername);
+				sendAnnouncement(playerOneUsername + " is playing with " + playerTwoUsername);
 			}
 		}
 	}
