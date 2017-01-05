@@ -185,8 +185,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	}
 
 	private void sendAnnouncement(String message) {
-		final String source = "[Server]";
-		final ChatMessage payload = new ChatMessage(source, message);
+		final ChatMessage payload = new ChatMessage(null, message);
 		messagingTemplate.convertAndSend(StompTopics.CHAT, payload);
 	}
 

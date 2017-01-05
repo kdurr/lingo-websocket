@@ -133,8 +133,21 @@ function addChatMessage(sender, body) {
 	usernameNode.appendChild(usernameTextNode);
 	var messageTextNode = document.createTextNode(' ' + body);
 	var chatMessage = document.createElement('div');
-	chatMessage.setAttribute('class', 'list-group-item');
+	chatMessage.classList.add('list-group-item');
 	chatMessage.appendChild(usernameNode);
+	chatMessage.appendChild(messageTextNode);
+	messageList.appendChild(chatMessage);
+
+	// Auto-scroll if necessary
+	messageList.scrollTop = messageList.scrollHeight;
+}
+
+function addChatAnnouncement(body) {
+	var messageList = document.getElementById('messageList');
+	var messageTextNode = document.createTextNode(body);
+	var chatMessage = document.createElement('div');
+	chatMessage.classList.add('list-group-item');
+	chatMessage.classList.add('messageLog');
 	chatMessage.appendChild(messageTextNode);
 	messageList.appendChild(chatMessage);
 
@@ -311,7 +324,9 @@ function subscribeToChatMessages() {
 		var chatMessage = JSON.parse(message.body);
 		var messageSender = chatMessage.username;
 		var messageBody = chatMessage.message;
-		if (messageSender === myUsername) {
+		if (messageSender === null) {
+			addChatAnnouncement(messageBody);
+		} else if (messageSender === myUsername) {
 			console.log('Ignoring message sent by myself')
 		} else {
 			console.log('Message from ' + messageSender + ": " + messageBody);
