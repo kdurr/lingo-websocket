@@ -89,6 +89,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	public void join(String username, @Header(SESSION_ID_HEADER) String sessionId) {
 		log.info("Player joined: {}, {}", sessionId, username);
 		usernameBySession.put(sessionId, username);
+		sendAnnouncement(username + " joined");
 		joinWaitingList(sessionId);
 	}
 
@@ -102,7 +103,10 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	}
 
 	private void leave(String sessionId) {
-		usernameBySession.remove(sessionId);
+		final String username = usernameBySession.remove(sessionId);
+		if (username != null) {
+			sendAnnouncement(username + " left");
+		}
 		final Game game = gameBySession.remove(sessionId);
 		if (game == null) {
 			leaveWaitingList(sessionId);
@@ -180,6 +184,12 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 		sendToUser(sessionId, StompTopics.PRACTICE_REPORTS, report);
 	}
 
+	private void sendAnnouncement(String message) {
+		final String source = "[Server]";
+		final ChatMessage payload = new ChatMessage(source, message);
+		messagingTemplate.convertAndSend(StompTopics.CHAT, payload);
+	}
+
 	private void sendToUser(String user, String destination, Object payload) {
 		// TODO: cache the headers?
 		final SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
@@ -222,6 +232,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 				final String[] playerTwoMessage = new String[] { firstLetter, playerOneUsername };
 				sendToUser(playerOne, StompTopics.OPPONENT_JOINED, playerOneMessage);
 				sendToUser(playerTwo, StompTopics.OPPONENT_JOINED, playerTwoMessage);
+				sendAnnouncement(playerOneUsername + " is playing against " + playerTwoUsername);
 			}
 		}
 	}

@@ -2,6 +2,8 @@ package lingo.client.api;
 
 public class StompTopics {
 
+	public static final String CHAT = createTopicName("chat");
+
 	public static final String OPPONENT_JOINED = createTopicName("opponentJoined");
 
 	public static final String OPPONENT_LEFT = createTopicName("opponentLeft");

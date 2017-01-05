@@ -137,6 +137,9 @@ function addChatMessage(sender, body) {
 	chatMessage.appendChild(usernameNode);
 	chatMessage.appendChild(messageTextNode);
 	messageList.appendChild(chatMessage);
+
+	// Auto-scroll if necessary
+	messageList.scrollTop = messageList.scrollHeight;
 }
 
 function drawMyBoard() {
