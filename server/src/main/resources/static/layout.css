@@ -29,12 +29,12 @@ body {
 
 /* Specific layout rules */
 
-.left.column {
+.main.column {
 	left: 0;
 	right: 300px;
 }
 
-.right.column {
+.chat.column {
 	width: 300px;
 	right: 0;
 }
@@ -71,10 +71,10 @@ body {
 	background: #ddd
 }
 
-.right.column {
+.chat.column {
 	border-left: 1px solid black;
 }
 
-.right.column .body {
+.chat.column .body {
 	padding: 0 10px;
 }
