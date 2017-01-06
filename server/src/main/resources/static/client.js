@@ -29,7 +29,11 @@ var client;
 function main() {
 	var usernameDiv = document.getElementById('usernameDiv');
 	var submitUsernameFunction = function() {
-		myUsername = usernameInput.value;
+		var usernameValue = usernameInput.value.trim();
+		if (usernameValue.length === 0) {
+			return;
+		}
+		myUsername = usernameValue;
 		localStorage.setItem('lingo.username', myUsername);
 		console.log('My username: ' + myUsername);
 		start();
@@ -118,7 +122,10 @@ function addChatMessageListener() {
 	var messageInput = document.getElementById('messageInput');
 	messageInput.addEventListener('keydown', function(e) {
 		if (e.which === KEYCODE_RETURN) {
-			var text = messageInput.value;
+			var text = messageInput.value.trim();
+			if (text.length === 0) {
+				return;
+			}
 			messageInput.value = '';
 			client.send('/app/lingo/chat', {}, text);
 			addChatMessage('Me', text);
