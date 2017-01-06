@@ -69,10 +69,6 @@ button:hover {
 	cursor: pointer;
 }
 
-canvas {
-	outline: none;
-}
-
 h1 {
   font: 24pt sans-serif;
   font-variant: small-caps;
