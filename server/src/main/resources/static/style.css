@@ -27,6 +27,7 @@ button:hover {
 	border-top: 1px solid black;
 	padding: 10px;
 	position: relative;
+	overflow-wrap: break-word;
 }
 
 .message-item.first {
@@ -35,10 +36,6 @@ button:hover {
 
 .log {
 	color: green;
-}
-
-#messageList {
-	bottom: 50px;
 }
 
 #messageInput {

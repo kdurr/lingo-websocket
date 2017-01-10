@@ -46,6 +46,14 @@ body {
 
 .body.row {
 	top: 75px;
+	bottom: 50px;
+}
+
+.body.row.nofooter {
+	bottom: 0;
+}
+
+.body.row.noheader {
 	bottom: 0;
 }
 
