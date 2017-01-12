@@ -20,7 +20,6 @@ var lastWord;
 
 var appDiv = document.getElementById('appDiv');
 var canvasDiv = document.getElementById('canvasDiv');
-var waitingDiv = document.getElementById('waitingDiv');
 var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
 
@@ -41,7 +40,6 @@ function main() {
 		console.log('My username: ' + myUsername);
 		start();
 		usernameDiv.classList.add('hidden');
-		waitingDiv.classList.remove('hidden');
 		appDiv.classList.remove('hidden');
 	}
 	usernameButton.addEventListener('click', submitUsernameFunction);
@@ -381,7 +379,6 @@ function subscribeToOpponentJoined() {
 		console.log('Opponent username: ' + opponentUsername);
 		reset(firstLetter, true);
 		canvasDiv.classList.remove('hidden');
-		waitingDiv.classList.add('hidden');
 		repaint();
 	});
 }
@@ -391,7 +388,6 @@ function subscribeToOpponentLeft() {
 		opponentUsername = null;
 		lastWord = null;
 		canvasDiv.classList.add('hidden');
-		waitingDiv.classList.remove('hidden');
 		repaint();
 	});
 }
