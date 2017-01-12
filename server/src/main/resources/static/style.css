@@ -10,7 +10,7 @@
 }
 
 body {
-	font-family: "Lucida Sans Unicode", sans-serif;
+	font-family: cursive;
 }
 
 button {
@@ -19,6 +19,20 @@ button {
 
 button:hover {
 	cursor: pointer;
+}
+
+/* Main area */
+
+.header {
+	font-size: 1.4em;
+	color: white;
+	background: steelblue;
+	text-shadow: 1px 1px 1px rgba(0, 0, 0, 1);
+	padding: 0 0.5em;
+}
+
+.body {
+	background: linen
 }
 
 /* Chat pane */
@@ -77,6 +91,7 @@ button:hover {
 /* Waiting pane */
 
 #waitingDiv h1 {
+	color: steelblue;
 	font-size: 28px;
 	text-align: center
 }
