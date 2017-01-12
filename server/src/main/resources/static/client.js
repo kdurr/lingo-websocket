@@ -28,6 +28,9 @@ var client;
 
 function main() {
 	var usernameDiv = document.getElementById('usernameDiv');
+	var usernameInput = document.getElementById('username');
+	var usernameButton = document.getElementById('usernameButton');
+	var usernameError = document.getElementById('usernameError');
 	var submitUsernameFunction = function() {
 		var usernameValue = usernameInput.value.trim();
 		if (usernameValue.length === 0) {
@@ -41,14 +44,22 @@ function main() {
 		waitingDiv.classList.remove('hidden');
 		appDiv.classList.remove('hidden');
 	}
-	var usernameInput = document.getElementById('username');
-	var usernameButton = document.getElementById('usernameButton');
 	usernameButton.addEventListener('click', submitUsernameFunction);
 	usernameInput.focus();
 	usernameInput.addEventListener('keydown', function(e) {
 		if (e.keyCode === KEYCODE_RETURN) {
 			e.preventDefault();
 			submitUsernameFunction();
+		}
+	});
+	usernameInput.addEventListener('keyup', function(e) {
+		var usernameValue = usernameInput.value.trim();
+		if (usernameValue.length === 0) {
+			usernameError.innerHTML = 'Name cannot be empty.';
+			usernameButton.disabled = true;
+		} else {
+			usernameError.innerHTML = '';
+			usernameButton.disabled = false;
 		}
 	});
 	var storedUsername = localStorage.getItem('lingo.username');
@@ -74,11 +85,13 @@ function start() {
 	client = Stomp.over(new SockJS('/stomp'));
 
 	client.connect({}, function(frame) {
-		subscribeToChatMessages();
+		subscribeToChat();
+		subscribeToGameStarted();
 		subscribeToOpponentJoined();
 		subscribeToOpponentLeft();
 		subscribeToOpponentReports();
 		subscribeToPlayerReports();
+		subscribeToUserJoined();
 		client.send('/app/lingo/join', {}, myUsername);
 	});
 }
@@ -329,7 +342,7 @@ function reset(firstLetter, clearScore) {
 	}
 }
 
-function subscribeToChatMessages() {
+function subscribeToChat() {
 	client.subscribe('/topic/lingo/chat', function(message) {
 		var chatMessage = JSON.parse(message.body);
 		var messageSender = chatMessage.username;
@@ -341,6 +354,21 @@ function subscribeToChatMessages() {
 		} else {
 			console.log('Message from ' + messageSender + ": " + messageBody);
 			addChatMessage(messageSender, messageBody);
+		}
+	});
+}
+
+function subscribeToGameStarted() {
+	client.subscribe('/topic/lingo/gameStarted', function(message) {
+		var report = JSON.parse(message.body);
+		var playerOne = report[0];
+		var playerTwo = report[1];
+		if (playerOne === myUsername) {
+			addChatAnnouncement('You are playing with ' + playerTwo);
+		} else if (playerTwo === myUsername) {
+			addChatAnnouncement('You are playing with ' + playerOne);
+		} else {
+			addChatAnnouncement(playerOne + ' is playing with ' + playerTwo);
 		}
 	});
 }
@@ -417,6 +445,17 @@ function subscribeToPlayerReports() {
 			}
 			myResults.push(result);
 			repaint();
+		}
+	});
+}
+
+function subscribeToUserJoined() {
+	client.subscribe('/topic/lingo/userJoined', function(message) {
+		var username = message.body;
+		if (username === myUsername) {
+			addChatAnnouncement('You joined');
+		} else {
+			addChatAnnouncement(username + ' joined');
 		}
 	});
 }

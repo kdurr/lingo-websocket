@@ -17,8 +17,12 @@ button {
 	padding: 6px 12px;
 }
 
-button:hover {
+button:hover:enabled {
 	cursor: pointer;
+}
+
+button:hover:disabled {
+	cursor: not-allowed;
 }
 
 /* Main area */
@@ -68,10 +72,15 @@ button:hover {
 	border-radius: 6px;
 }
 
-.jumbotron p {
+.jumbotron h2 {
 	margin-bottom: 15px;
 	font-size: 21px;
 	font-weight: 200;
+}
+
+.error-message {
+	color: red;
+	font-size: 14px;
 }
 
 .form-group {
