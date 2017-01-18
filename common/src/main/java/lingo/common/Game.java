@@ -3,6 +3,7 @@ package lingo.common;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Game {
 
@@ -12,23 +13,25 @@ public class Game {
 	public static final int WORD_LENGTH = 5;
 	public static final int[] INVALID_GUESS = new int[] { 9, 9, 9, 9, 9 };
 
-	public final String playerOne;
+	private static final AtomicInteger idCounter = new AtomicInteger(0);
 
-	public final String playerTwo;
+	public final int id;
 
-	private final Set<String> acceptableGuesses;
+	private Player host;
 
-	private final List<String> possibleWords;
+	private Player challenger;
+
+	private Set<String> acceptableGuesses;
+
+	private List<String> possibleWords;
 
 	private String word;
 
 	private int wordIndex = 0;
 
-	public Game(String playerOne, String playerTwo, List<String> possibleWords, Set<String> acceptableGuesses) {
-		this.playerOne = playerOne;
-		this.playerTwo = playerTwo;
-		this.possibleWords = possibleWords;
-		this.acceptableGuesses = acceptableGuesses;
+	public Game(Player host) {
+		this.id = idCounter.incrementAndGet();
+		this.host = host;
 	}
 
 	private static int indexOf(char[] array, char searchTerm) {
@@ -77,6 +80,14 @@ public class Game {
 		return result;
 	}
 
+	public Player getChallenger() {
+		return challenger;
+	}
+
+	public Player getHost() {
+		return host;
+	}
+
 	public String newGame() {
 		Collections.shuffle(possibleWords);
 		wordIndex = 0;
@@ -86,6 +97,22 @@ public class Game {
 	public String newWord() {
 		word = possibleWords.get(wordIndex++);
 		return word;
+	}
+
+	public void setAcceptableGuesses(Set<String> value) {
+		this.acceptableGuesses = value;
+	}
+
+	public void setChallenger(Player value) {
+		this.challenger = value;
+	}
+
+	public void setHost(Player value) {
+		this.host = value;
+	}
+
+	public void setPossibleWords(List<String> value) {
+		this.possibleWords = value;
 	}
 
 }

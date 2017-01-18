@@ -2,12 +2,12 @@ package lingo.server;
 
 import static org.springframework.messaging.simp.SimpMessageHeaderAccessor.SESSION_ID_HEADER;
 
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
-
-import javax.annotation.PostConstruct;
+import java.util.Set;
+import java.util.TreeMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,19 +19,23 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.annotation.SubscribeMapping;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
-import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.socket.messaging.AbstractSubProtocolEvent;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
-import lingo.client.api.StompTopics;
+import lingo.client.api.Destinations;
 import lingo.common.ChatMessage;
 import lingo.common.Game;
+import lingo.common.GameLeftMessage;
+import lingo.common.Player;
 import lingo.common.Report;
+import lingo.common.SetUsernameMessage;
 
-@Controller
-@MessageMapping("/lingo")
+@RestController
 public class LingoController implements ApplicationListener<AbstractSubProtocolEvent> {
 
 	private static final Logger log = LoggerFactory.getLogger(LingoController.class);
@@ -42,25 +46,41 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	@Autowired
 	private WordRepository wordRepo;
 
-	private final List<String> waitingList = new ArrayList<>();
+	private final Map<Integer, Game> gameById = new TreeMap<>();
 
-	private final Map<String, Game> gameBySession = new HashMap<>();
+	private final Map<Player, Game> gameByPlayer = new HashMap<>();
 
-	private final Map<String, Game> practiceBySession = new HashMap<>();
+	private final Map<Player, Game> practiceByPlayer = new HashMap<>();
 
-	private final Map<String, String> usernameBySession = new HashMap<>();
+	private final Map<String, Player> playerBySession = new HashMap<>();
+
+	private final Set<String> usernames = new HashSet<>();
 
 	@MessageMapping("/chat")
 	public ChatMessage chat(String message, @Header(SESSION_ID_HEADER) String sessionId) {
-		final String username = usernameBySession.get(sessionId);
-		return new ChatMessage(username, message);
+		final Player player = playerBySession.get(sessionId);
+		if (player == null) {
+			log.warn("No player for session {}", sessionId);
+			throw new IllegalStateException("No player for session " + sessionId);
+		}
+		return new ChatMessage(player.getUsername(), message);
+	}
+
+	@RequestMapping("/games")
+	public Collection<Game> getGames() {
+		return gameById.values();
 	}
 
 	@MessageMapping("/guess")
 	public void guess(String guess, @Header(SESSION_ID_HEADER) String sessionId) {
+		final Player player = playerBySession.get(sessionId);
+		if (player == null) {
+			log.warn("No player for session {}", sessionId);
+			return;
+		}
 		guess = guess.toUpperCase();
-		log.info("Player {} guessed: {}", sessionId, guess);
-		final Game game = gameBySession.get(sessionId);
+		log.info("{} guessed {}", sessionId, guess);
+		final Game game = gameByPlayer.get(player);
 		final int[] result = game.evaluate(guess);
 
 		// Generate reports
@@ -80,49 +100,123 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 			playerReport.setResult(result);
 			opponentReport.setResult(result);
 		}
-		final String opponentId = sessionId.equals(game.playerOne) ? game.playerTwo : game.playerOne;
-		sendToUser(sessionId, StompTopics.PLAYER_REPORTS, playerReport);
-		sendToUser(opponentId, StompTopics.OPPONENT_REPORTS, opponentReport);
-	}
-
-	@MessageMapping("/join")
-	public void join(String username, @Header(SESSION_ID_HEADER) String sessionId) {
-		log.info("Player joined: {}, {}", sessionId, username);
-		usernameBySession.put(sessionId, username);
-		send(StompTopics.USER_JOINED, username);
-		joinWaitingList(sessionId);
-	}
-
-	private void joinWaitingList(String sessionId) {
-		synchronized (waitingList) {
-			if (!waitingList.contains(sessionId)) {
-				waitingList.add(sessionId);
-				waitingList.notify();
-			}
-		}
-	}
-
-	private void leave(String sessionId) {
-		final String username = usernameBySession.remove(sessionId);
-		if (username != null) {
-			send(StompTopics.CHAT, new ChatMessage(null, username + " left"));
-		}
-		final Game game = gameBySession.remove(sessionId);
-		if (game == null) {
-			leaveWaitingList(sessionId);
+		final Player opponent;
+		if (sessionId.equals(game.getHost().getSessionId())) {
+			opponent = game.getChallenger();
 		} else {
-			log.info("Player {} left their game!", sessionId);
-			final String opponentId = sessionId.equals(game.playerOne) ? game.playerTwo : game.playerOne;
-			gameBySession.remove(opponentId);
-			sendToUser(opponentId, StompTopics.OPPONENT_LEFT, "You win!");
-			joinWaitingList(opponentId);
+			opponent = game.getHost();
+		}
+		sendToPlayer(player, Destinations.PLAYER_REPORTS, playerReport);
+		sendToPlayer(opponent, Destinations.OPPONENT_REPORTS, opponentReport);
+	}
+
+	@MessageMapping("/hostGame")
+	public synchronized void hostGame(@Header(SESSION_ID_HEADER) String sessionId) {
+		final Player player = playerBySession.get(sessionId);
+		if (player == null) {
+			log.warn("No player for session {}", sessionId);
+			return;
+		}
+		if (gameByPlayer.containsKey(player)) {
+			log.warn("{} is in a game already", player.getUsername());
+			return;
+		}
+		final Game game = new Game(player);
+		gameById.put(game.id, game);
+		gameByPlayer.put(player, game);
+		log.info("{} hosted a game", player.getUsername());
+		send(Destinations.GAME_HOSTED, game);
+	}
+
+	@MessageMapping("/joinGame")
+	public synchronized void joinGame(Integer gameId, @Header(SESSION_ID_HEADER) String sessionId) {
+		final Player player = playerBySession.get(sessionId);
+		if (player == null) {
+			log.warn("No player for session {}", sessionId);
+			return;
+		}
+		if (gameByPlayer.containsKey(player)) {
+			log.warn("{} is in a game already", player.getUsername());
+			return;
+		}
+		final Game game = gameById.get(gameId);
+		if (game == null) {
+			log.warn("No game with id {}", gameId);
+			return;
+		}
+		if (game.getChallenger() == null) {
+			game.setChallenger(player);
+			gameByPlayer.put(player, game);
+			log.info("{} joined {}'s game", player.getUsername(), game.getHost());
+			send(Destinations.GAME_JOINED, game);
+
+			// Start the game immediately
+			// TODO: require the players to "ready up"
+			game.setAcceptableGuesses(wordRepo.getGuesses());
+			game.setPossibleWords(wordRepo.getWords());
+			final String firstWord = game.newGame();
+			final String firstLetter = String.valueOf(firstWord.charAt(0));
+			log.info("First word: {}", firstWord);
+			final Player playerOne = game.getHost();
+			final Player playerTwo = game.getChallenger();
+			final String[] playerOneMessage = new String[] { firstLetter, playerTwo.getUsername() };
+			final String[] playerTwoMessage = new String[] { firstLetter, playerOne.getUsername() };
+			sendToPlayer(playerOne, Destinations.OPPONENT_JOINED, playerOneMessage);
+			sendToPlayer(playerTwo, Destinations.OPPONENT_JOINED, playerTwoMessage);
+			send(Destinations.GAME_STARTED, new String[] { playerOne.getUsername(), playerTwo.getUsername() });
 		}
 	}
 
-	private void leaveWaitingList(String sessionId) {
-		synchronized (waitingList) {
-			waitingList.remove(sessionId);
-			waitingList.notify();
+	private synchronized void leave(String sessionId) {
+		final Player player = playerBySession.remove(sessionId);
+		if (player == null) {
+			log.warn("No player for session {}", sessionId);
+			return;
+		}
+		final String username = player.getUsername();
+		usernames.remove(username);
+		final Game game = gameByPlayer.remove(player);
+		if (game == null) {
+			log.info("{} left", username);
+			send(Destinations.CHAT, new ChatMessage(null, username + " left"));
+			return;
+		}
+		leaveGame(game, player);
+	}
+
+	@MessageMapping("/leaveGame")
+	public synchronized void leaveGame(@Header(SESSION_ID_HEADER) String sessionId) {
+		final Player player = playerBySession.get(sessionId);
+		if (player == null) {
+			log.warn("No player for session {}", sessionId);
+			return;
+		}
+		final Game game = gameByPlayer.remove(player);
+		if (game == null) {
+			log.warn("{} is not in a game", player.getUsername());
+			return;
+		}
+		leaveGame(game, player);
+	}
+
+	private synchronized void leaveGame(Game game, Player player) {
+		final Player gameHost = game.getHost();
+		final Player gameChallenger = game.getChallenger();
+		if (gameHost == player) {
+			if (gameChallenger == null) {
+				// Close the game
+				gameById.remove(game.id);
+				send(Destinations.GAME_CLOSED, game);
+			} else {
+				// Leave the game
+				game.setHost(gameChallenger);
+				game.setChallenger(null);
+				send(Destinations.GAME_LEFT, new GameLeftMessage(game, player));
+			}
+		} else if (gameChallenger == player) {
+			// Leave the game
+			game.setChallenger(null);
+			send(Destinations.GAME_LEFT, new GameLeftMessage(game, player));
 		}
 	}
 
@@ -138,6 +232,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	private void onSessionConnected(SessionConnectedEvent event) {
 		final String sessionId = StompHeaderAccessor.wrap(event.getMessage()).getSessionId();
 		log.info("Session connected: {}", sessionId);
+		playerBySession.put(sessionId, new Player(sessionId));
 	}
 
 	private void onSessionDisconnect(SessionDisconnectEvent event) {
@@ -146,27 +241,31 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 		leave(sessionId);
 	}
 
-	@PostConstruct
-	private void postConstruct() {
-		new Thread(new WaitingListListener()).start();
+	@SubscribeMapping("/topic/sessionId")
+	public String onSessionId(@Header(SESSION_ID_HEADER) String sessionId) {
+		return sessionId;
 	}
 
 	@MessageMapping("/practiceGame")
 	public void practiceGame(@Header(SESSION_ID_HEADER) String sessionId) {
-		log.info("Player wants a practice session: {}", sessionId);
-		final Game game = new Game(sessionId, null, wordRepo.getWords(), wordRepo.getGuesses());
-		practiceBySession.put(sessionId, game);
+		final Player player = playerBySession.get(sessionId);
+		log.info("{} wants a practice session", sessionId);
+		final Game game = new Game(player);
+		game.setAcceptableGuesses(wordRepo.getGuesses());
+		game.setPossibleWords(wordRepo.getWords());
+		practiceByPlayer.put(player, game);
 		final String firstWord = game.newGame();
 		final String firstLetter = String.valueOf(firstWord.charAt(0));
 		log.info("First word: {}", firstWord);
-		sendToUser(sessionId, StompTopics.PRACTICE_GAME, firstLetter);
+		sendToPlayer(player, Destinations.PRACTICE_GAME, firstLetter);
 	}
 
 	@MessageMapping("/practiceGuess")
 	public void practiceGuess(String guess, @Header(SESSION_ID_HEADER) String sessionId) {
+		final Player player = playerBySession.get(sessionId);
 		guess = guess.toUpperCase();
-		log.info("Player {} guessed: {}", sessionId, guess);
-		final Game game = practiceBySession.get(sessionId);
+		log.info("{} guessed {}", sessionId, guess);
+		final Game game = practiceByPlayer.get(player);
 		final int[] result = game.evaluate(guess);
 
 		// Generate report
@@ -181,57 +280,38 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 		} else {
 			report.setResult(result);
 		}
-		sendToUser(sessionId, StompTopics.PRACTICE_REPORTS, report);
+		sendToPlayer(player, Destinations.PRACTICE_REPORTS, report);
 	}
 
 	private void send(String destination, Object payload) {
 		messagingTemplate.convertAndSend(destination, payload);
 	}
 
-	private void sendToUser(String user, String destination, Object payload) {
-		// TODO: cache the headers?
-		final SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
-		headerAccessor.setSessionId(user);
-		headerAccessor.setLeaveMutable(true);
-		final MessageHeaders headers = headerAccessor.getMessageHeaders();
-		messagingTemplate.convertAndSendToUser(user, destination, payload, headers);
+	private void sendToPlayer(Player player, String destination, Object payload) {
+		sendToSession(player.getSessionId(), destination, payload);
 	}
 
-	/**
-	 * Task that spawns a game whenever two players are waiting.
-	 */
-	private class WaitingListListener implements Runnable {
+	private void sendToSession(String sessionId, String destination, Object payload) {
+		// TODO: cache the headers?
+		final SimpMessageHeaderAccessor headerAccessor = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
+		headerAccessor.setSessionId(sessionId);
+		headerAccessor.setLeaveMutable(true);
+		final MessageHeaders headers = headerAccessor.getMessageHeaders();
+		messagingTemplate.convertAndSendToUser(sessionId, destination, payload, headers);
+	}
 
-		@Override
-		public void run() {
-			while (true) {
-				final String playerOne;
-				final String playerTwo;
-				synchronized (waitingList) {
-					while (waitingList.size() < 2) {
-						try {
-							waitingList.wait();
-						} catch (InterruptedException ok) {
-							ok.printStackTrace();
-						}
-					}
-					playerOne = waitingList.remove(0);
-					playerTwo = waitingList.remove(0);
-				}
-				final Game game = new Game(playerOne, playerTwo, wordRepo.getWords(), wordRepo.getGuesses());
-				gameBySession.put(playerOne, game);
-				gameBySession.put(playerTwo, game);
-				final String firstWord = game.newGame();
-				final String firstLetter = String.valueOf(firstWord.charAt(0));
-				log.info("First word: {}", firstWord);
-				final String playerOneUsername = usernameBySession.get(playerOne);
-				final String playerTwoUsername = usernameBySession.get(playerTwo);
-				final String[] playerOneMessage = new String[] { firstLetter, playerTwoUsername };
-				final String[] playerTwoMessage = new String[] { firstLetter, playerOneUsername };
-				sendToUser(playerOne, StompTopics.OPPONENT_JOINED, playerOneMessage);
-				sendToUser(playerTwo, StompTopics.OPPONENT_JOINED, playerTwoMessage);
-				send(StompTopics.GAME_STARTED, new String[] { playerOneUsername, playerTwoUsername });
-			}
+	@MessageMapping("/setUsername")
+	public synchronized void setUsername(String username, @Header(SESSION_ID_HEADER) String sessionId) {
+		final Player player = playerBySession.get(sessionId);
+		if (usernames.add(username)) {
+			player.setUsername(username);
+			log.info("{} --> {}", sessionId, username);
+			sendToPlayer(player, Destinations.SESSION_USERNAME, new SetUsernameMessage(true, username, null));
+			send(Destinations.USER_JOINED, new Object[] { username, playerBySession.size() });
+		} else {
+			log.warn("{} -/> {} : Username taken", sessionId, username);
+			final SetUsernameMessage response = new SetUsernameMessage(false, null, "Username taken");
+			sendToPlayer(player, Destinations.SESSION_USERNAME, response);
 		}
 	}
 

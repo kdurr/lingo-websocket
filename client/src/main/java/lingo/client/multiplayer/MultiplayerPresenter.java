@@ -29,7 +29,7 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
 import javafx.scene.web.WebView;
-import lingo.client.api.StompTopics;
+import lingo.client.api.Destinations;
 import lingo.client.util.FxmlController;
 import lingo.client.view.Board;
 import lingo.client.view.OpponentBoard;
@@ -154,13 +154,13 @@ public class MultiplayerPresenter implements FxmlController {
 	@PostConstruct
 	private void postConstruct() {
 		executorService.execute(() -> {
-			stompTemplate.subscribe("/user" + StompTopics.OPPONENT_JOINED, new OpponentJoinedHandler(),
+			stompTemplate.subscribe("/user" + Destinations.OPPONENT_JOINED, new OpponentJoinedHandler(),
 					subscription -> subscriptionsLatch.countDown());
-			stompTemplate.subscribe("/user" + StompTopics.OPPONENT_LEFT, new OpponentLeftHandler(),
+			stompTemplate.subscribe("/user" + Destinations.OPPONENT_LEFT, new OpponentLeftHandler(),
 					subscription -> subscriptionsLatch.countDown());
-			stompTemplate.subscribe("/user" + StompTopics.OPPONENT_REPORTS, new OpponentReportHandler(),
+			stompTemplate.subscribe("/user" + Destinations.OPPONENT_REPORTS, new OpponentReportHandler(),
 					subscription -> subscriptionsLatch.countDown());
-			stompTemplate.subscribe("/user" + StompTopics.PLAYER_REPORTS, new PlayerReportHandler(),
+			stompTemplate.subscribe("/user" + Destinations.PLAYER_REPORTS, new PlayerReportHandler(),
 					subscription -> subscriptionsLatch.countDown());
 		});
 	}

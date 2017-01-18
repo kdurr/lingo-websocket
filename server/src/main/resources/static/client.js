@@ -24,48 +24,100 @@ var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
 
 var client;
+var sessionId = null;
+
+var vm = new Vue({
+	el: '#vue-app',
+	data: {
+		games: [],
+		gameId: null
+	},
+	computed: {
+		inGame: function() {
+			return this.gameId !== null;
+		}
+	},
+	methods: {
+		hostGame: function(event) {
+			client.send('/app/hostGame');
+		},
+		joinGame: function(event) {
+			// Discard 'game-' prefix
+			var buttonId = event.target.id;
+			var gameId = buttonId.substr(5);
+			client.send('/app/joinGame', {}, gameId);
+		},
+		leaveGame: function(event) {
+			client.send('/app/leaveGame');
+		}
+	}
+});
+
+function afterConnected(stompConnectedFrame) {
+	console.log('Connected to STOMP endpoint')
+	var sessionIdTopic = '/user/topic/sessionId';
+	var sessionIdSubscription = null;
+	var sessionIdHandler = function(message) {
+		console.log('Session ID: ' + message.body);
+		sessionId = message.body;
+		sessionIdSubscription.unsubscribe();
+	}
+	sessionIdSubscription = client.subscribe(sessionIdTopic, sessionIdHandler);
+}
 
 function main() {
+
+	client = Stomp.over(new SockJS('/stomp'));
+	client.connect({}, afterConnected);
+
 	var usernameDiv = document.getElementById('usernameDiv');
-	var usernameInput = document.getElementById('username');
-	var usernameButton = document.getElementById('usernameButton');
 	var usernameError = document.getElementById('usernameError');
-	var submitUsernameFunction = function() {
-		var usernameValue = usernameInput.value.trim();
-		if (usernameValue.length === 0) {
-			return;
+	var usernameInput = document.getElementById('nicknameInput');
+
+	var usernameTopic = '/user/topic/sessionUsername';
+	var usernameSubscription = null;
+	var usernameHandler = function(message) {
+		var response = JSON.parse(message.body);
+		if (response.success === true) {
+			console.log('Username: ' + response.username);
+			myUsername = response.username;
+			start();
+			usernameDiv.classList.add('hidden');
+			appDiv.classList.remove('hidden');
+		} else {
+			usernameError.innerHTML = response.errorMessage;
 		}
-		myUsername = usernameValue;
-		localStorage.setItem('lingo.username', myUsername);
-		console.log('My username: ' + myUsername);
-		start();
-		usernameDiv.classList.add('hidden');
-		appDiv.classList.remove('hidden');
-	}
-	usernameButton.addEventListener('click', submitUsernameFunction);
+	};
+
 	usernameInput.focus();
 	usernameInput.addEventListener('keydown', function(e) {
 		if (e.keyCode === KEYCODE_RETURN) {
 			e.preventDefault();
-			submitUsernameFunction();
+			if (sessionId === null) {
+				usernameError.innerHTML = 'Not connected to server';
+				return;
+			}
+			var usernameValue = usernameInput.value.trim();
+			if (usernameValue.length === 0) {
+				usernameError.innerHTML = 'Name cannot be empty';
+				return;
+			}
+			if (usernameSubscription === null) {
+				usernameSubscription = client.subscribe(usernameTopic, usernameHandler);
+				client.subscribe('/topic/userJoined', onUserJoined);
+			}
+			client.send('/app/setUsername', {}, usernameValue);
 		}
 	});
 	usernameInput.addEventListener('keyup', function(e) {
+		if (e.keyCode === KEYCODE_RETURN) {
+			return;
+		}
 		var usernameValue = usernameInput.value.trim();
-		if (usernameValue.length === 0) {
-			usernameError.innerHTML = 'Name cannot be empty.';
-			usernameButton.disabled = true;
-		} else {
+		if (usernameValue.length !== 0) {
 			usernameError.innerHTML = '';
-			usernameButton.disabled = false;
 		}
 	});
-	var storedUsername = localStorage.getItem('lingo.username');
-	if (storedUsername === null) {
-		usernameInput.value = 'Alex Trebek';
-	} else {
-		usernameInput.value = storedUsername;
-	}
 }
 
 function start() {
@@ -80,18 +132,16 @@ function start() {
 	reset();
 	repaint();
 
-	client = Stomp.over(new SockJS('/stomp'));
-
-	client.connect({}, function(frame) {
-		subscribeToChat();
-		subscribeToGameStarted();
-		subscribeToOpponentJoined();
-		subscribeToOpponentLeft();
-		subscribeToOpponentReports();
-		subscribeToPlayerReports();
-		subscribeToUserJoined();
-		client.send('/app/lingo/join', {}, myUsername);
-	});
+	client.subscribe('/topic/chat', onChat);
+	client.subscribe('/topic/gameClosed', onGameClosed);
+	client.subscribe('/topic/gameHosted', onGameHosted);
+	client.subscribe('/topic/gameJoined', onGameJoined);
+	client.subscribe('/topic/gameLeft', onGameLeft);
+	client.subscribe('/topic/gameStarted', onGameStarted);
+	client.subscribe('/user/topic/opponentJoined', onOpponentJoined);
+	client.subscribe('/user/topic/opponentLeft', onOpponentLeft);
+	client.subscribe('/user/topic/opponentReports', onOpponentReport);
+	client.subscribe('/user/topic/playerReports', onPlayerReport);
 }
 
 // special keys
@@ -104,7 +154,7 @@ function addKeydownListener() {
 		}
 		else if (e.which === KEYCODE_RETURN) {
 			if (myGuess.length === 5) {
-				client.send("/app/lingo/guess", {}, myGuess);
+				client.send("/app/guess", {}, myGuess);
 				myGuess = '';
 				repaint();
 			}
@@ -138,8 +188,8 @@ function addChatMessageListener() {
 				return;
 			}
 			messageInput.value = '';
-			client.send('/app/lingo/chat', {}, text);
-			addChatMessage('Me', text);
+			client.send('/app/chat', {}, text);
+			addChatMessage(myUsername, text);
 		}
 	});
 }
@@ -147,7 +197,7 @@ function addChatMessageListener() {
 function addChatMessage(sender, body) {
 	var messageList = document.getElementById('messageList');
 	var usernameNode = document.createElement('strong');
-	var usernameTextNode = document.createTextNode(sender)
+	var usernameTextNode = document.createTextNode(sender);
 	usernameNode.appendChild(usernameTextNode);
 	var messageTextNode = document.createTextNode(' ' + body);
 	var messageItem = document.createElement('div');
@@ -315,6 +365,17 @@ function isValidResult(result) {
 	return true;
 }
 
+function removeGame(gameId) {
+	var indexToRemove = null;
+	for (var i = 0; i < vm.games.length; i++) {
+		if (vm.games[i].id === gameId) {
+			indexToRemove = i;
+			break;
+		}
+	}
+	vm.games.splice(indexToRemove, 1);
+}
+
 function repaint() {
 	// clear the canvas
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -340,120 +401,198 @@ function reset(firstLetter, clearScore) {
 	}
 }
 
-function subscribeToChat() {
-	client.subscribe('/topic/lingo/chat', function(message) {
-		var chatMessage = JSON.parse(message.body);
-		var messageSender = chatMessage.username;
-		var messageBody = chatMessage.message;
-		if (messageSender === null) {
-			addChatAnnouncement(messageBody);
-		} else if (messageSender === myUsername) {
-			console.log('Ignoring message sent by myself')
-		} else {
-			console.log('Message from ' + messageSender + ": " + messageBody);
-			addChatMessage(messageSender, messageBody);
-		}
-	});
+function toggleView() {
+	var lobbyColumn = document.getElementById('lobbyColumn');
+	var gameColumn = document.getElementById('gameColumn')
+	if (lobbyColumn.classList.contains('primary')) {
+		lobbyColumn.classList.remove('primary');
+	} else {
+		lobbyColumn.classList.add('primary');
+	}
+	if (gameColumn.classList.contains('primary')) {
+		gameColumn.classList.remove('primary');
+	} else {
+		gameColumn.classList.add('primary');
+	}
 }
 
-function subscribeToGameStarted() {
-	client.subscribe('/topic/lingo/gameStarted', function(message) {
-		var report = JSON.parse(message.body);
-		var playerOne = report[0];
-		var playerTwo = report[1];
-		if (playerOne === myUsername) {
-			addChatAnnouncement('You are playing with ' + playerTwo);
-		} else if (playerTwo === myUsername) {
-			addChatAnnouncement('You are playing with ' + playerOne);
-		} else {
-			addChatAnnouncement(playerOne + ' is playing with ' + playerTwo);
-		}
-	});
+function onChat(message) {
+	var chatMessage = JSON.parse(message.body);
+	var messageSender = chatMessage.username;
+	var messageBody = chatMessage.message;
+	if (messageSender === null) {
+		addChatAnnouncement(messageBody);
+	} else if (messageSender === myUsername) {
+		// Ignore messages sent by yourself
+	} else {
+		console.log('Message from ' + messageSender + ": " + messageBody);
+		addChatMessage(messageSender, messageBody);
+	}
 }
 
-function subscribeToOpponentJoined() {
-	client.subscribe('/user/topic/lingo/opponentJoined', function(message) {
-		var report = JSON.parse(message.body);
-		var firstLetter = report[0];
-		opponentUsername = report[1];
-		console.log('Opponent username: ' + opponentUsername);
-		reset(firstLetter, true);
-		canvasDiv.classList.remove('hidden');
+function onGameClosed(message) {
+	var game = JSON.parse(message.body);
+	var gameId = game.id;
+	var gameHost = game.host.username;
+	if (gameHost === myUsername) {
+		vm.gameId = null;
+	}
+	console.log(gameHost + ' closed Game ' + gameId);
+	removeGame(gameId);
+}
+
+function onGameHosted(message) {
+	var game = JSON.parse(message.body);
+	var gameId = game.id;
+	var gameHost = game.host.username;
+	if (gameHost === myUsername) {
+		vm.gameId = gameId;
+	}
+	console.log(gameHost + ' hosted Game ' + gameId);
+	vm.games.push({ id: gameId, playerOne: gameHost, started: false });
+}
+
+function onGameJoined(message) {
+	var game = JSON.parse(message.body);
+	var gameId = game.id;
+	var gameHost = game.host.username;
+	var gameChallenger = game.challenger.username;
+	if (gameChallenger === myUsername) {
+		vm.gameId = gameId;
+	}
+	console.log(gameChallenger + ' joined ' + gameHost + "'s game");
+	for (var i = 0; i < vm.games.length; i++) {
+		if (vm.games[i].id === gameId) {
+			vm.games[i].playerTwo = gameChallenger;
+			vm.games[i].started = true;
+			break;
+		}
+	}
+	if (gameHost === myUsername || gameChallenger === myUsername) {
+		toggleView();
+	}
+}
+
+function onGameLeft(message) {
+	var report = JSON.parse(message.body);
+	var game = report.game;
+	var gameId = game.id;
+	var gameHost = game.host.username;
+	var gameLeaver = report.gameLeaver.username;
+	var previousPlayers = [];
+	for (var i = 0; i < vm.games.length; i++) {
+		if (vm.games[i].id === gameId) {
+			previousPlayers.push(vm.games[i].playerOne);
+			previousPlayers.push(vm.games[i].playerTwo);
+			vm.games[i].playerOne = gameHost;
+			vm.games[i].playerTwo = game.challenger ? game.challenger.username : null;
+			vm.games[i].started = false;
+			break;
+		}
+	}
+	console.log(gameLeaver + ' left ' + gameHost + "'s game");
+	if (gameLeaver === myUsername) {
+		vm.gameId = null;
+	}
+	if (previousPlayers.indexOf(myUsername) != -1) {
+		onOpponentLeft();
+		toggleView();
+	}
+}
+
+function onGameStarted(message) {
+	var report = JSON.parse(message.body);
+	var playerOne = report[0];
+	var playerTwo = report[1];
+	if (playerOne === myUsername) {
+		addChatAnnouncement('You are playing with ' + playerTwo);
+	} else if (playerTwo === myUsername) {
+		addChatAnnouncement('You are playing with ' + playerOne);
+	} else {
+		addChatAnnouncement(playerOne + ' is playing with ' + playerTwo);
+	}
+}
+
+function onOpponentJoined(message) {
+	var report = JSON.parse(message.body);
+	var firstLetter = report[0];
+	opponentUsername = report[1];
+	console.log('Opponent username: ' + opponentUsername);
+	reset(firstLetter, true);
+	canvasDiv.classList.remove('hidden');
+	repaint();
+}
+
+function onOpponentLeft(message) {
+	opponentUsername = null;
+	lastWord = null;
+	canvasDiv.classList.add('hidden');
+	repaint();
+}
+
+function onOpponentReport(message) {
+	var report = JSON.parse(message.body);
+	if (report.correct === true) {
+		var guess = report.guess;
+		var firstLetter = report.firstLetter;
+		console.log('Opponent guessed correctly! ' + guess);
+		opponentScore = opponentScore + 100;
+		lastWord = guess;
+		reset(firstLetter, false);
 		repaint();
-	});
-}
-
-function subscribeToOpponentLeft() {
-	client.subscribe('/user/topic/lingo/opponentLeft', function(message) {
-		opponentUsername = null;
-		lastWord = null;
-		canvasDiv.classList.add('hidden');
+	} else {
+		var result = report.result;
+		console.log('Opponent result: ' + result);
+		opponentResults.push(result);
 		repaint();
-	});
+	}
 }
 
-function subscribeToOpponentReports() {
-	client.subscribe('/user/topic/lingo/opponentReports', function(message) {
-		var report = JSON.parse(message.body);
-		if (report.correct === true) {
-			var guess = report.guess;
-			var firstLetter = report.firstLetter;
-			console.log('Opponent guessed correctly! ' + guess);
-			opponentScore = opponentScore + 100;
-			lastWord = guess;
-			reset(firstLetter, false);
-			repaint();
+function onPlayerReport(message) {
+	var report = JSON.parse(message.body);
+	console.log('My report: ' + report);
+	if (report.correct === true) {
+		var guess = report.guess;
+		var firstLetter = report.firstLetter;
+		console.log('I guessed correctly!');
+		myScore = myScore + 100;
+		lastWord = guess;
+		reset(firstLetter, false);
+		repaint();
+	} else {
+		var guess = report.guess;
+		var result = report.result;
+		console.log('My result: ' + result);
+		// TODO: use isValidResult function
+		if (result[0] === 9) {
+			myGuesses.push('-----');
 		} else {
-			var result = report.result;
-			console.log('Opponent result: ' + result);
-			opponentResults.push(result);
-			repaint();
-		}
-	});
-}
-
-function subscribeToPlayerReports() {
-	client.subscribe('/user/topic/lingo/playerReports', function(message) {
-		var report = JSON.parse(message.body);
-		console.log('My report: ' + report);
-		if (report.correct === true) {
-			var guess = report.guess;
-			var firstLetter = report.firstLetter;
-			console.log('I guessed correctly!');
-			myScore = myScore + 100;
-			lastWord = guess;
-			reset(firstLetter, false);
-			repaint();
-		} else {
-			var guess = report.guess;
-			var result = report.result;
-			console.log('My result: ' + result);
-			// TODO: use isValidResult function
-			if (result[0] === 9) {
-				myGuesses.push('-----');
-			} else {
-				for (var i = 0; i < 5; i++) {
-					if (result[i] === 2) {
-						myProgress[i] = guess[i];
-					}
+			for (var i = 0; i < 5; i++) {
+				if (result[i] === 2) {
+					myProgress[i] = guess[i];
 				}
-				myGuesses.push(guess);
 			}
-			myResults.push(result);
-			repaint();
+			myGuesses.push(guess);
 		}
-	});
+		myResults.push(result);
+		repaint();
+	}
 }
 
-function subscribeToUserJoined() {
-	client.subscribe('/topic/lingo/userJoined', function(message) {
-		var username = message.body;
-		if (username === myUsername) {
-			addChatAnnouncement('You joined');
+function onUserJoined(message) {
+	var report = JSON.parse(message.body);
+	var username = report[0];
+	var numUsers = report[1];
+	if (username === myUsername) {
+		addChatAnnouncement('Welcome to Lingo!');
+		if (numUsers === 1) {
+			addChatAnnouncement('You are the only player online');
 		} else {
-			addChatAnnouncement(username + ' joined');
+			addChatAnnouncement('There are ' + numUsers + ' players online');
 		}
-	});
+	} else {
+		addChatAnnouncement(username + ' joined');
+	}
 }
 
 main();

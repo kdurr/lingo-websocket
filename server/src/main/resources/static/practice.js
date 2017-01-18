@@ -36,7 +36,7 @@ function start() {
 	client.connect({}, function(frame) {
 		subscribeToPracticeGame();
 		subscribeToPracticeReports();
-		client.send('/app/lingo/practiceGame');
+		client.send('/app/practiceGame');
 	});
 }
 
@@ -52,7 +52,7 @@ function addKeydownListener() {
 		// return
 		else if (e.which === 13) {
 			if (myGuess.length === 5) {
-				client.send("/app/lingo/practiceGuess", {}, myGuess);
+				client.send("/app/practiceGuess", {}, myGuess);
 				myGuess = '';
 				repaint();
 			}
@@ -223,7 +223,7 @@ function reset(firstLetter, clearScore) {
 }
 
 function subscribeToPracticeGame() {
-	client.subscribe('/user/topic/lingo/practiceGame', function(message) {
+	client.subscribe('/user/topic/practiceGame', function(message) {
 		var firstLetter = message.body;
 		reset(firstLetter, true);
 		repaint();
@@ -231,7 +231,7 @@ function subscribeToPracticeGame() {
 }
 
 function subscribeToPracticeReports() {
-	client.subscribe('/user/topic/lingo/practiceReports', function(message) {
+	client.subscribe('/user/topic/practiceReports', function(message) {
 		var report = JSON.parse(message.body);
 		console.log('My report: ' + report);
 		if (report.correct === true) {

@@ -54,7 +54,7 @@ body {
 }
 
 .body.row.noheader {
-	bottom: 0;
+	top: 0;
 }
 
 .footer.row {
@@ -69,4 +69,24 @@ body {
 
 .chat.column .body {
 	padding: 0 10px;
+}
+
+.lobby.column {
+	width: 300px;
+	left: 0;
+}
+
+.lobby.column .body {
+	padding: 0 10px;
+}
+
+.lobby.column.primary {
+	width: inherit;
+	right: 0;
+}
+
+.game.column.primary {
+	left: 300px;
+	right: 0;
+	border-left: 1px solid black;
 }
