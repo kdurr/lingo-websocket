@@ -17,9 +17,9 @@ public class Game {
 
 	public final int id;
 
-	private Player host;
+	private Player playerOne;
 
-	private Player challenger;
+	private Player playerTwo;
 
 	private Set<String> acceptableGuesses;
 
@@ -31,7 +31,7 @@ public class Game {
 
 	public Game(Player host) {
 		this.id = idCounter.incrementAndGet();
-		this.host = host;
+		this.playerOne = host;
 	}
 
 	private static int indexOf(char[] array, char searchTerm) {
@@ -80,12 +80,12 @@ public class Game {
 		return result;
 	}
 
-	public Player getChallenger() {
-		return challenger;
+	public Player getPlayerOne() {
+		return playerOne;
 	}
 
-	public Player getHost() {
-		return host;
+	public Player getPlayerTwo() {
+		return playerTwo;
 	}
 
 	public String newGame() {
@@ -103,12 +103,12 @@ public class Game {
 		this.acceptableGuesses = value;
 	}
 
-	public void setChallenger(Player value) {
-		this.challenger = value;
+	public void setPlayerOne(Player value) {
+		this.playerOne = value;
 	}
 
-	public void setHost(Player value) {
-		this.host = value;
+	public void setPlayerTwo(Player value) {
+		this.playerTwo = value;
 	}
 
 	public void setPossibleWords(List<String> value) {

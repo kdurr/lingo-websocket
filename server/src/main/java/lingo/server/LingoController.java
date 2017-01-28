@@ -81,7 +81,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 			return;
 		}
 		guess = guess.toUpperCase();
-		log.info("{} guessed {}", sessionId, guess);
+		log.info("{} guessed {}", player, guess);
 		final Game game = gameByPlayer.get(player);
 		final int[] result = game.evaluate(guess);
 
@@ -103,10 +103,10 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 			opponentReport.setResult(result);
 		}
 		final Player opponent;
-		if (sessionId.equals(game.getHost().getSessionId())) {
-			opponent = game.getChallenger();
+		if (sessionId.equals(game.getPlayerOne().getSessionId())) {
+			opponent = game.getPlayerTwo();
 		} else {
-			opponent = game.getHost();
+			opponent = game.getPlayerOne();
 		}
 		sendToPlayer(player, Destinations.PLAYER_REPORTS, playerReport);
 		sendToPlayer(opponent, Destinations.OPPONENT_REPORTS, opponentReport);
@@ -121,13 +121,13 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 			return;
 		}
 		if (gameByPlayer.containsKey(player)) {
-			log.warn("{} is in a game already", username);
+			log.warn("{} is in a game already", player);
 			return;
 		}
 		final Game game = new Game(player);
 		gameById.put(game.id, game);
 		gameByPlayer.put(player, game);
-		log.info("{} hosted a game", username);
+		log.info("{} hosted a game", player);
 		send(Destinations.GAME_HOSTED, game);
 	}
 
@@ -140,7 +140,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 			return;
 		}
 		if (gameByPlayer.containsKey(player)) {
-			log.warn("{} is in a game already", username);
+			log.warn("{} is in a game already", player);
 			return;
 		}
 		final Game game = gameById.get(gameId);
@@ -148,10 +148,10 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 			log.warn("No game with id {}", gameId);
 			return;
 		}
-		if (game.getChallenger() == null) {
-			game.setChallenger(player);
+		if (game.getPlayerTwo() == null) {
+			game.setPlayerTwo(player);
 			gameByPlayer.put(player, game);
-			log.info("{} joined {}'s game", username, game.getHost());
+			log.info("{} joined {}'s game", player, game.getPlayerOne());
 			send(Destinations.GAME_JOINED, game);
 
 			// Start the game immediately
@@ -161,8 +161,8 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 			final String firstWord = game.newGame();
 			final String firstLetter = String.valueOf(firstWord.charAt(0));
 			log.info("First word: {}", firstWord);
-			final Player playerOne = game.getHost();
-			final Player playerTwo = game.getChallenger();
+			final Player playerOne = game.getPlayerOne();
+			final Player playerTwo = game.getPlayerTwo();
 			final String[] playerOneMessage = new String[] { firstLetter, playerTwo.getUsername() };
 			final String[] playerTwoMessage = new String[] { firstLetter, playerOne.getUsername() };
 			sendToPlayer(playerOne, Destinations.OPPONENT_JOINED, playerOneMessage);
@@ -191,29 +191,29 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 		final Player player = playerBySession.get(sessionId);
 		final Game game = gameByPlayer.remove(player);
 		if (game == null) {
-			log.warn("{} is not in a game", player.getUsername());
+			log.warn("{} is not in a game", player);
 			return;
 		}
 		leaveGame(game, player);
 	}
 
 	private synchronized void leaveGame(Game game, Player player) {
-		final Player gameHost = game.getHost();
-		final Player gameChallenger = game.getChallenger();
-		if (gameHost == player) {
-			if (gameChallenger == null) {
+		final Player playerOne = game.getPlayerOne();
+		final Player playerTwo = game.getPlayerTwo();
+		if (playerOne == player) {
+			if (playerTwo == null) {
 				// Close the game
 				gameById.remove(game.id);
 				send(Destinations.GAME_CLOSED, game);
 			} else {
 				// Leave the game
-				game.setHost(gameChallenger);
-				game.setChallenger(null);
+				game.setPlayerOne(playerTwo);
+				game.setPlayerTwo(null);
 				send(Destinations.GAME_LEFT, new GameLeftMessage(game, player));
 			}
-		} else if (gameChallenger == player) {
+		} else if (playerTwo == player) {
 			// Leave the game
-			game.setChallenger(null);
+			game.setPlayerTwo(null);
 			send(Destinations.GAME_LEFT, new GameLeftMessage(game, player));
 		}
 	}
@@ -262,7 +262,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	public void practiceGuess(String guess, @Header(SESSION_ID_HEADER) String sessionId) {
 		final Player player = playerBySession.get(sessionId);
 		guess = guess.toUpperCase();
-		log.info("{} guessed {}", sessionId, guess);
+		log.info("{} guessed {}", player, guess);
 		final Game game = practiceByPlayer.get(player);
 		final int[] result = game.evaluate(guess);
 

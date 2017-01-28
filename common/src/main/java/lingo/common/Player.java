@@ -22,4 +22,12 @@ public class Player {
 		this.username = username;
 	}
 
+	@Override
+	public String toString() {
+		if (username != null) {
+			return username;
+		}
+		return sessionId;
+	}
+
 }

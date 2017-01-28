@@ -132,6 +132,20 @@ function start() {
 	reset();
 	repaint();
 
+	// Load initial data
+	doHttpGet('/games', function(games) {
+		for (var i = 0; i < games.length; i++) {
+			var game = games[i];
+			vm.games.push({
+				id: game.id,
+				playerOne: game.playerOne.username,
+				playerTwo: game.playerTwo ? game.playerTwo.username : null,
+				started: game.playerTwo !== null
+			});
+		}
+	});
+
+	// Subscribe to updates
 	client.subscribe('/topic/chat', onChat);
 	client.subscribe('/topic/gameClosed', onGameClosed);
 	client.subscribe('/topic/gameHosted', onGameHosted);
@@ -228,6 +242,18 @@ function addMessageItem(messageList, messageItem) {
 	}
 	messageList.appendChild(messageItem);
 	messageList.scrollTop = messageList.scrollHeight;
+}
+
+function doHttpGet(url, callback) {
+	var xhr = new XMLHttpRequest();
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+			var response = JSON.parse(xhr.responseText);
+			callback(response);
+		}
+	};
+	xhr.open('GET', url, true);
+	xhr.send();
 }
 
 function drawMyBoard() {
@@ -437,42 +463,42 @@ function onChat(message) {
 function onGameClosed(message) {
 	var game = JSON.parse(message.body);
 	var gameId = game.id;
-	var gameHost = game.host.username;
-	if (gameHost === myUsername) {
+	var playerOne = game.playerOne.username;
+	if (playerOne === myUsername) {
 		vm.gameId = null;
 	}
-	console.log(gameHost + ' closed Game ' + gameId);
+	console.log(playerOne + ' closed Game ' + gameId);
 	removeGame(gameId);
 }
 
 function onGameHosted(message) {
 	var game = JSON.parse(message.body);
 	var gameId = game.id;
-	var gameHost = game.host.username;
-	if (gameHost === myUsername) {
+	var playerOne = game.playerOne.username;
+	if (playerOne === myUsername) {
 		vm.gameId = gameId;
 	}
-	console.log(gameHost + ' hosted Game ' + gameId);
-	vm.games.push({ id: gameId, playerOne: gameHost, started: false });
+	console.log(playerOne + ' hosted Game ' + gameId);
+	vm.games.push({ id: gameId, playerOne: playerOne, started: false });
 }
 
 function onGameJoined(message) {
 	var game = JSON.parse(message.body);
 	var gameId = game.id;
-	var gameHost = game.host.username;
-	var gameChallenger = game.challenger.username;
-	if (gameChallenger === myUsername) {
+	var playerOne = game.playerOne.username;
+	var playerTwo = game.playerTwo.username;
+	if (playerTwo === myUsername) {
 		vm.gameId = gameId;
 	}
-	console.log(gameChallenger + ' joined ' + gameHost + "'s game");
+	console.log(playerTwo + ' joined ' + playerOne + "'s game");
 	for (var i = 0; i < vm.games.length; i++) {
 		if (vm.games[i].id === gameId) {
-			vm.games[i].playerTwo = gameChallenger;
+			vm.games[i].playerTwo = playerTwo;
 			vm.games[i].started = true;
 			break;
 		}
 	}
-	if (gameHost === myUsername || gameChallenger === myUsername) {
+	if (playerOne === myUsername || playerTwo === myUsername) {
 		toggleView();
 	}
 }
@@ -481,20 +507,20 @@ function onGameLeft(message) {
 	var report = JSON.parse(message.body);
 	var game = report.game;
 	var gameId = game.id;
-	var gameHost = game.host.username;
+	var playerOne = game.playerOne.username;
 	var gameLeaver = report.gameLeaver.username;
 	var previousPlayers = [];
 	for (var i = 0; i < vm.games.length; i++) {
 		if (vm.games[i].id === gameId) {
 			previousPlayers.push(vm.games[i].playerOne);
 			previousPlayers.push(vm.games[i].playerTwo);
-			vm.games[i].playerOne = gameHost;
-			vm.games[i].playerTwo = game.challenger ? game.challenger.username : null;
+			vm.games[i].playerOne = playerOne;
+			vm.games[i].playerTwo = game.playerTwo ? game.playerTwo.username : null;
 			vm.games[i].started = false;
 			break;
 		}
 	}
-	console.log(gameLeaver + ' left ' + gameHost + "'s game");
+	console.log(gameLeaver + ' left ' + playerOne + "'s game");
 	if (gameLeaver === myUsername) {
 		vm.gameId = null;
 	}
