@@ -59,9 +59,10 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	@MessageMapping("/chat")
 	public ChatMessage chat(String message, @Header(SESSION_ID_HEADER) String sessionId) {
 		final Player player = playerBySession.get(sessionId);
-		if (player == null) {
-			log.warn("No player for session {}", sessionId);
-			throw new IllegalStateException("No player for session " + sessionId);
+		final String username = player.getUsername();
+		if (username == null) {
+			log.warn("No username for session {}", sessionId);
+			throw new IllegalStateException("No username for session " + sessionId);
 		}
 		return new ChatMessage(player.getUsername(), message);
 	}
@@ -74,8 +75,9 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	@MessageMapping("/guess")
 	public void guess(String guess, @Header(SESSION_ID_HEADER) String sessionId) {
 		final Player player = playerBySession.get(sessionId);
-		if (player == null) {
-			log.warn("No player for session {}", sessionId);
+		final String username = player.getUsername();
+		if (username == null) {
+			log.warn("No username for session {}", sessionId);
 			return;
 		}
 		guess = guess.toUpperCase();
@@ -113,30 +115,32 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 	@MessageMapping("/hostGame")
 	public synchronized void hostGame(@Header(SESSION_ID_HEADER) String sessionId) {
 		final Player player = playerBySession.get(sessionId);
-		if (player == null) {
-			log.warn("No player for session {}", sessionId);
+		final String username = player.getUsername();
+		if (username == null) {
+			log.warn("No username for session {}", sessionId);
 			return;
 		}
 		if (gameByPlayer.containsKey(player)) {
-			log.warn("{} is in a game already", player.getUsername());
+			log.warn("{} is in a game already", username);
 			return;
 		}
 		final Game game = new Game(player);
 		gameById.put(game.id, game);
 		gameByPlayer.put(player, game);
-		log.info("{} hosted a game", player.getUsername());
+		log.info("{} hosted a game", username);
 		send(Destinations.GAME_HOSTED, game);
 	}
 
 	@MessageMapping("/joinGame")
 	public synchronized void joinGame(Integer gameId, @Header(SESSION_ID_HEADER) String sessionId) {
 		final Player player = playerBySession.get(sessionId);
-		if (player == null) {
-			log.warn("No player for session {}", sessionId);
+		final String username = player.getUsername();
+		if (username == null) {
+			log.warn("No username for session {}", sessionId);
 			return;
 		}
 		if (gameByPlayer.containsKey(player)) {
-			log.warn("{} is in a game already", player.getUsername());
+			log.warn("{} is in a game already", username);
 			return;
 		}
 		final Game game = gameById.get(gameId);
@@ -147,7 +151,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 		if (game.getChallenger() == null) {
 			game.setChallenger(player);
 			gameByPlayer.put(player, game);
-			log.info("{} joined {}'s game", player.getUsername(), game.getHost());
+			log.info("{} joined {}'s game", username, game.getHost());
 			send(Destinations.GAME_JOINED, game);
 
 			// Start the game immediately
@@ -169,28 +173,22 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 
 	private synchronized void leave(String sessionId) {
 		final Player player = playerBySession.remove(sessionId);
-		if (player == null) {
-			log.warn("No player for session {}", sessionId);
-			return;
-		}
 		final String username = player.getUsername();
 		usernames.remove(username);
 		final Game game = gameByPlayer.remove(player);
 		if (game == null) {
-			log.info("{} left", username);
-			send(Destinations.CHAT, new ChatMessage(null, username + " left"));
-			return;
+			if (username != null) {
+				log.info("{} left", username);
+				send(Destinations.CHAT, new ChatMessage(null, username + " left"));
+			}
+		} else {
+			leaveGame(game, player);
 		}
-		leaveGame(game, player);
 	}
 
 	@MessageMapping("/leaveGame")
 	public synchronized void leaveGame(@Header(SESSION_ID_HEADER) String sessionId) {
 		final Player player = playerBySession.get(sessionId);
-		if (player == null) {
-			log.warn("No player for session {}", sessionId);
-			return;
-		}
 		final Game game = gameByPlayer.remove(player);
 		if (game == null) {
 			log.warn("{} is not in a game", player.getUsername());
