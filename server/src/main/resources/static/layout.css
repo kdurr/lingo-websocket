@@ -46,7 +46,7 @@ body {
 
 .body.row {
 	top: 75px;
-	bottom: 50px;
+	bottom: 66px;
 }
 
 .body.row.nofooter {
@@ -58,9 +58,8 @@ body {
 }
 
 .footer.row {
-	height: 50px;
+	height: 66px;
 	bottom: 0;
-	line-height: 50px;
 }
 
 .chat.column {
@@ -69,6 +68,13 @@ body {
 
 .chat.column .body {
 	padding: 0 10px;
+}
+
+.chat.column .footer {
+	border-top: 1px solid black;
+	box-sizing: border-box;
+	padding: 10px;
+	padding-bottom: 5px;
 }
 
 .lobby.column {

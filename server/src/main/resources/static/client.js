@@ -148,9 +148,9 @@ function start() {
 function addKeydownListener() {
 	canvasDiv.addEventListener('keydown', function(e) {
 		if (e.which === KEYCODE_BACKSPACE) {
+			e.preventDefault();
 			myGuess = myGuess.substr(0, myGuess.length - 1);
 			repaint();
-			e.preventDefault();
 		}
 		else if (e.which === KEYCODE_RETURN) {
 			if (myGuess.length === 5) {
@@ -181,15 +181,19 @@ function addKeypressListener() {
 
 function addChatMessageListener() {
 	var messageInput = document.getElementById('messageInput');
-	messageInput.addEventListener('keydown', function(e) {
+	messageInput.addEventListener('keypress', function(e) {
 		if (e.which === KEYCODE_RETURN) {
-			var text = messageInput.value.trim();
-			if (text.length === 0) {
-				return;
+			// Shift+Enter -> new line
+			if (!e.shiftKey) {
+				e.preventDefault();
+				var text = messageInput.value.trim();
+				if (text.length === 0) {
+					return;
+				}
+				messageInput.value = '';
+				client.send('/app/chat', {}, text);
+				addChatMessage(myUsername, text);
 			}
-			messageInput.value = '';
-			client.send('/app/chat', {}, text);
-			addChatMessage(myUsername, text);
 		}
 	});
 }
