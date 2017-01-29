@@ -24,6 +24,8 @@ public class Destinations {
 
 	public static final String PRACTICE_REPORTS = topicDestination("practiceReports");
 
+	public static final String PRACTICE_WORD_SKIPPED = topicDestination("practiceWordSkipped");
+
 	public static final String SESSION_USERNAME = topicDestination("sessionUsername");
 
 	public static final String USER_JOINED = topicDestination("userJoined");

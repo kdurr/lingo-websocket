@@ -27,6 +27,7 @@ function start() {
 
 	addKeydownListener();
 	addKeypressListener();
+	addSkipButtonListener();
 
 	reset();
 	repaint();
@@ -36,6 +37,7 @@ function start() {
 	client.connect({}, function(frame) {
 		subscribeToPracticeGame();
 		subscribeToPracticeReports();
+		subscribeToPracticeWordSkipped();
 		client.send('/app/practiceGame');
 	});
 }
@@ -74,6 +76,13 @@ function addKeypressListener() {
 				repaint();
 			}
 		}
+	});
+}
+
+// skip button
+function addSkipButtonListener() {
+	document.getElementById('skipButton').addEventListener('click', function(e) {
+		client.send("/app/practiceSkip");
 	});
 }
 
@@ -227,6 +236,7 @@ function subscribeToPracticeGame() {
 		var firstLetter = message.body;
 		reset(firstLetter, true);
 		repaint();
+		document.getElementById('skipDiv').classList.remove('hidden');
 	});
 }
 
@@ -260,6 +270,14 @@ function subscribeToPracticeReports() {
 			myResults.push(result);
 			repaint();
 		}
+	});
+}
+
+function subscribeToPracticeWordSkipped() {
+	client.subscribe('/user/topic/practiceWordSkipped', function(message) {
+		var firstLetter = message.body;
+		reset(firstLetter, false);
+		repaint();
 	});
 }
 

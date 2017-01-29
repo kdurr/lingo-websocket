@@ -9,10 +9,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import javax.annotation.PostConstruct;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationListener;
 import org.springframework.messaging.MessageHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -20,12 +21,8 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.annotation.SubscribeMapping;
-import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.socket.messaging.AbstractSubProtocolEvent;
-import org.springframework.web.socket.messaging.SessionConnectedEvent;
-import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import lingo.client.api.Destinations;
 import lingo.common.ChatMessage;
@@ -36,12 +33,15 @@ import lingo.common.Report;
 import lingo.common.SetUsernameMessage;
 
 @RestController
-public class LingoController implements ApplicationListener<AbstractSubProtocolEvent> {
+public class LingoController {
 
 	private static final Logger log = LoggerFactory.getLogger(LingoController.class);
 
 	@Autowired
 	private SimpMessagingTemplate messagingTemplate;
+
+	@Autowired
+	private SessionManager sessionManager;
 
 	@Autowired
 	private WordRepository wordRepo;
@@ -50,15 +50,11 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 
 	private final Map<Player, Game> gameByPlayer = new HashMap<>();
 
-	private final Map<Player, Game> practiceByPlayer = new HashMap<>();
-
-	private final Map<String, Player> playerBySession = new HashMap<>();
-
 	private final Set<String> usernames = new HashSet<>();
 
 	@MessageMapping("/chat")
 	public ChatMessage chat(String message, @Header(SESSION_ID_HEADER) String sessionId) {
-		final Player player = playerBySession.get(sessionId);
+		final Player player = sessionManager.getPlayer(sessionId);
 		final String username = player.getUsername();
 		if (username == null) {
 			log.warn("No username for session {}", sessionId);
@@ -74,7 +70,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 
 	@MessageMapping("/guess")
 	public void guess(String guess, @Header(SESSION_ID_HEADER) String sessionId) {
-		final Player player = playerBySession.get(sessionId);
+		final Player player = sessionManager.getPlayer(sessionId);
 		final String username = player.getUsername();
 		if (username == null) {
 			log.warn("No username for session {}", sessionId);
@@ -114,7 +110,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 
 	@MessageMapping("/hostGame")
 	public synchronized void hostGame(@Header(SESSION_ID_HEADER) String sessionId) {
-		final Player player = playerBySession.get(sessionId);
+		final Player player = sessionManager.getPlayer(sessionId);
 		final String username = player.getUsername();
 		if (username == null) {
 			log.warn("No username for session {}", sessionId);
@@ -133,7 +129,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 
 	@MessageMapping("/joinGame")
 	public synchronized void joinGame(Integer gameId, @Header(SESSION_ID_HEADER) String sessionId) {
-		final Player player = playerBySession.get(sessionId);
+		final Player player = sessionManager.getPlayer(sessionId);
 		final String username = player.getUsername();
 		if (username == null) {
 			log.warn("No username for session {}", sessionId);
@@ -171,8 +167,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 		}
 	}
 
-	private synchronized void leave(String sessionId) {
-		final Player player = playerBySession.remove(sessionId);
+	private synchronized void leave(Player player) {
 		final String username = player.getUsername();
 		usernames.remove(username);
 		final Game game = gameByPlayer.remove(player);
@@ -188,7 +183,7 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 
 	@MessageMapping("/leaveGame")
 	public synchronized void leaveGame(@Header(SESSION_ID_HEADER) String sessionId) {
-		final Player player = playerBySession.get(sessionId);
+		final Player player = sessionManager.getPlayer(sessionId);
 		final Game game = gameByPlayer.remove(player);
 		if (game == null) {
 			log.warn("{} is not in a game", player);
@@ -218,67 +213,14 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 		}
 	}
 
-	@Override
-	public void onApplicationEvent(AbstractSubProtocolEvent event) {
-		if (event instanceof SessionConnectedEvent) {
-			onSessionConnected((SessionConnectedEvent) event);
-		} else if (event instanceof SessionDisconnectEvent) {
-			onSessionDisconnect((SessionDisconnectEvent) event);
-		}
-	}
-
-	private void onSessionConnected(SessionConnectedEvent event) {
-		final String sessionId = StompHeaderAccessor.wrap(event.getMessage()).getSessionId();
-		log.info("Session connected: {}", sessionId);
-		playerBySession.put(sessionId, new Player(sessionId));
-	}
-
-	private void onSessionDisconnect(SessionDisconnectEvent event) {
-		final String sessionId = event.getSessionId();
-		log.info("Session disconnected: {}", sessionId);
-		leave(sessionId);
-	}
-
 	@SubscribeMapping("/topic/sessionId")
 	public String onSessionId(@Header(SESSION_ID_HEADER) String sessionId) {
 		return sessionId;
 	}
 
-	@MessageMapping("/practiceGame")
-	public void practiceGame(@Header(SESSION_ID_HEADER) String sessionId) {
-		final Player player = playerBySession.get(sessionId);
-		log.info("{} wants a practice session", sessionId);
-		final Game game = new Game(player);
-		game.setAcceptableGuesses(wordRepo.getGuesses());
-		game.setPossibleWords(wordRepo.getWords());
-		practiceByPlayer.put(player, game);
-		final String firstWord = game.newGame();
-		final String firstLetter = String.valueOf(firstWord.charAt(0));
-		log.info("First word: {}", firstWord);
-		sendToPlayer(player, Destinations.PRACTICE_GAME, firstLetter);
-	}
-
-	@MessageMapping("/practiceGuess")
-	public void practiceGuess(String guess, @Header(SESSION_ID_HEADER) String sessionId) {
-		final Player player = playerBySession.get(sessionId);
-		guess = guess.toUpperCase();
-		log.info("{} guessed {}", player, guess);
-		final Game game = practiceByPlayer.get(player);
-		final int[] result = game.evaluate(guess);
-
-		// Generate report
-		final Report report = new Report();
-		report.setGuess(guess);
-		if (Game.isCorrect(result)) {
-			final String newWord = game.newWord();
-			final String firstLetter = String.valueOf(newWord.charAt(0));
-			log.info("New word: {}", newWord);
-			report.setCorrect(true);
-			report.setFirstLetter(firstLetter);
-		} else {
-			report.setResult(result);
-		}
-		sendToPlayer(player, Destinations.PRACTICE_REPORTS, report);
+	@PostConstruct
+	public void postConstruct() {
+		sessionManager.addListener(new PlayerLeftListener());
 	}
 
 	private void send(String destination, Object payload) {
@@ -300,17 +242,31 @@ public class LingoController implements ApplicationListener<AbstractSubProtocolE
 
 	@MessageMapping("/setUsername")
 	public synchronized void setUsername(String username, @Header(SESSION_ID_HEADER) String sessionId) {
-		final Player player = playerBySession.get(sessionId);
+		final Player player = sessionManager.getPlayer(sessionId);
 		if (usernames.add(username)) {
 			player.setUsername(username);
 			log.info("{} --> {}", sessionId, username);
 			sendToPlayer(player, Destinations.SESSION_USERNAME, new SetUsernameMessage(true, username, null));
-			send(Destinations.USER_JOINED, new Object[] { username, playerBySession.size() });
+			send(Destinations.USER_JOINED, new Object[] { username, sessionManager.getPlayerCount() });
 		} else {
 			log.warn("{} -/> {} : Username taken", sessionId, username);
 			final SetUsernameMessage response = new SetUsernameMessage(false, null, "Username taken");
 			sendToPlayer(player, Destinations.SESSION_USERNAME, response);
 		}
+	}
+
+	private class PlayerLeftListener implements SessionManager.Listener {
+
+		@Override
+		public void playerJoined(Player player) {
+			// Ignore joining players for now
+		}
+
+		@Override
+		public void playerLeft(Player player) {
+			leave(player);
+		}
+
 	}
 
 }
