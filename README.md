@@ -1,17 +1,15 @@
 # Lingo WebSocket
 
-Lingo with JavaFX and WebSockets
+Lingo with WebSockets
 
 ## Build
 
 `mvn clean install`
 
-## Launch client
-
-`mvn -f client jfx:run`
-
 ## Launch server
 
-Required for multiplayer play
-
 `mvn -f server spring-boot:run`
+
+## Launch client
+
+Navigate to <http://localhost:8080>
