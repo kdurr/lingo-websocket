@@ -109,6 +109,7 @@ button:hover:disabled {
 }
 
 .panel>.list-group .list-group-item {
+	font-size: 1em;
 	border-width: 1px 0;
 	border-radius: 0;
 }
@@ -129,6 +130,23 @@ button.list-group-item {
 
 button.list-group-item:hover {
 	background-color: lightblue;
+}
+
+.button {
+	width: 120px;
+	margin-left: 10px;
+	border: none;
+	outline: none;
+}
+
+.create.button {
+	background-color: steelblue;
+	color: white;
+}
+
+.leave.button {
+	background-color: lightcoral;
+	color: black;
 }
 
 /* Nickname pane */

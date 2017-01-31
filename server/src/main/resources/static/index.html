@@ -25,7 +25,7 @@
                   <h3 class="panel-title">Games</h3>
                 </div>
                 <div class="list-group">
-                  <div v-if="games.length === 0" class="list-group-item">There are no games.</div>
+                  <div v-if="games.length === 0" class="list-group-item">There are no games</div>
                   <div v-for="game in games">
                     <div v-if="game.started" v-bind:id="'game-' + game.id" class="list-group-item">
                       <strong>{{ game.playerOne }}</strong> is playing with <strong>{{ game.playerTwo }}</strong>
@@ -36,8 +36,8 @@
                   </div>
                 </div>
               </div>
-              <button v-if="inGame" @click="leaveGame" type="button">Leave game</button>
-              <button v-else @click="hostGame" type="button">Create a game</button>
+              <button v-show="inGame" @click="leaveGame" type="button" class="leave button">Leave game</button>
+              <button v-show="!inGame" @click="hostGame" type="button" class="create button">Create game</button>
             </div>
           </div>
           <div id="gameColumn" class="game column">
