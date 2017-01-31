@@ -26,14 +26,14 @@
                 </div>
                 <div class="list-group">
                   <div v-if="games.length === 0" class="list-group-item">There are no games</div>
-                  <div v-for="game in games">
+                  <template v-for="game in games">
                     <div v-if="game.started" v-bind:id="'game-' + game.id" class="list-group-item">
-                      <strong>{{ game.playerOne }}</strong> is playing with <strong>{{ game.playerTwo }}</strong>
+                      <strong>{{ game.playerOne }}</strong> vs. <strong>{{ game.playerTwo }}</strong>
                     </div>
-                    <button v-else v-bind:id="'game-' + game.id" @click="joinGame" type="button" class="list-group-item">
+                    <button v-else v-bind:id="'game-' + game.id" @click="joinGame" type="button" v-bind:disabled="inGame" class="list-group-item">
                       <strong>{{ game.playerOne }}</strong> wants to play
                     </button>
-                  </div>
+                  </template>
                 </div>
               </div>
               <button v-show="inGame" @click="leaveGame" type="button" class="leave button">Leave game</button>

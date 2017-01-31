@@ -123,7 +123,7 @@ public class LingoController {
 		final Game game = new Game(player);
 		gameById.put(game.id, game);
 		gameByPlayer.put(player, game);
-		log.info("{} hosted a game", player);
+		log.info("{} hosted Game {}", player, game.id);
 		send(Destinations.GAME_HOSTED, game);
 	}
 
@@ -198,6 +198,7 @@ public class LingoController {
 		if (playerOne == player) {
 			if (playerTwo == null) {
 				// Close the game
+				log.info("{} closed Game {}", player, game.id);
 				gameById.remove(game.id);
 				send(Destinations.GAME_CLOSED, game);
 			} else {

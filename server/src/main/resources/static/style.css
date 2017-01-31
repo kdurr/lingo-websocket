@@ -112,6 +112,7 @@ button:hover:disabled {
 	font-size: 1em;
 	border-width: 1px 0;
 	border-radius: 0;
+	outline: none;
 }
 
 .list-group-item {
@@ -130,6 +131,15 @@ button.list-group-item {
 
 button.list-group-item:hover {
 	background-color: lightblue;
+}
+
+button.list-group-item:disabled {
+	color: black;
+}
+
+button.list-group-item:hover:disabled {
+	background-color: white;
+	cursor: default;
 }
 
 .button {
