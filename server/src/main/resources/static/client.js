@@ -12,14 +12,11 @@ var myGuess;
 var myGuesses;
 var myProgress;
 var myResults;
-var myUsername;
 var opponentScore = 0;
 var opponentResults;
 var opponentUsername;
 var lastWord;
 
-var appDiv = document.getElementById('appDiv');
-var canvasDiv = document.getElementById('canvasDiv');
 var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext('2d');
 
@@ -30,11 +27,18 @@ var vm = new Vue({
 	el: '#vue-app',
 	data: {
 		games: [],
-		gameId: null
+		gameId: null,
+		messages: [],
+		username: null,
+		usernameError: ''
 	},
 	computed: {
 		inGame: function() {
 			return this.gameId !== null;
+		},
+		inStartedGame: function() {
+			var game = getGame(this.gameId);
+			return game !== null && game.started === true;
 		}
 	},
 	methods: {
@@ -49,6 +53,49 @@ var vm = new Vue({
 		},
 		leaveGame: function(event) {
 			client.send('/app/leaveGame');
+		},
+		onCanvasKeydown: function(event) {
+			if (event.which === KEYCODE_BACKSPACE) {
+				event.preventDefault();
+				myGuess = myGuess.substr(0, myGuess.length - 1);
+				repaint();
+			}
+			else if (event.which === KEYCODE_RETURN) {
+				if (myGuess.length === 5) {
+					client.send("/app/guess", {}, myGuess);
+					myGuess = '';
+					repaint();
+				}
+			}
+		},
+		onCanvasKeypress: function(event) {
+			var charCode = event.charCode;
+			if (isCharacter(charCode)) {
+				if (isCharacterLowercase(charCode)) {
+					charCode = charCode - 32;
+				}
+				var char = String.fromCharCode(charCode);
+				if (myGuess.length < 5) {
+					myGuess += char;
+					repaint();
+				}
+			}
+		},
+		onChatKeypress: function(event) {
+			var messageInput = event.target;
+			if (event.which === KEYCODE_RETURN) {
+				// Shift+Enter -> new line
+				if (!event.shiftKey) {
+					event.preventDefault();
+					var text = messageInput.value.trim();
+					if (text.length === 0) {
+						return;
+					}
+					messageInput.value = '';
+					client.send('/app/chat', {}, text);
+					addChatMessage(vm.username, text);
+				}
+			}
 		}
 	}
 });
@@ -70,8 +117,6 @@ function main() {
 	client = Stomp.over(new SockJS('/stomp'));
 	client.connect({}, afterConnected);
 
-	var usernameDiv = document.getElementById('usernameDiv');
-	var usernameError = document.getElementById('usernameError');
 	var usernameInput = document.getElementById('nicknameInput');
 
 	var usernameTopic = '/user/topic/sessionUsername';
@@ -80,26 +125,23 @@ function main() {
 		var response = JSON.parse(message.body);
 		if (response.success === true) {
 			console.log('Username: ' + response.username);
-			myUsername = response.username;
+			vm.username = response.username;
 			start();
-			usernameDiv.classList.add('hidden');
-			appDiv.classList.remove('hidden');
 		} else {
-			usernameError.innerHTML = response.errorMessage;
+			vm.usernameError = response.errorMessage;
 		}
 	};
 
-	usernameInput.focus();
 	usernameInput.addEventListener('keydown', function(e) {
-		if (e.keyCode === KEYCODE_RETURN) {
-			e.preventDefault();
+		if (event.keyCode === KEYCODE_RETURN) {
+			event.preventDefault();
 			if (sessionId === null) {
-				usernameError.innerHTML = 'Not connected to server';
+				vm.usernameError = 'Not connected to server';
 				return;
 			}
 			var usernameValue = usernameInput.value.trim();
 			if (usernameValue.length === 0) {
-				usernameError.innerHTML = 'Name cannot be empty';
+				vm.usernameError = 'Name cannot be empty';
 				return;
 			}
 			if (usernameSubscription === null) {
@@ -115,7 +157,7 @@ function main() {
 		}
 		var usernameValue = usernameInput.value.trim();
 		if (usernameValue.length !== 0) {
-			usernameError.innerHTML = '';
+			vm.usernameError = '';
 		}
 	});
 }
@@ -124,10 +166,6 @@ function start() {
 	ctx.font = '25px Monospace';
 	ctx.textBaseline = 'middle';
 	ctx.textAlign = 'center';
-
-	addKeydownListener();
-	addKeypressListener();
-	addChatMessageListener();
 
 	reset();
 	repaint();
@@ -158,89 +196,23 @@ function start() {
 	client.subscribe('/user/topic/playerReports', onPlayerReport);
 }
 
-// special keys
-function addKeydownListener() {
-	canvasDiv.addEventListener('keydown', function(e) {
-		if (e.which === KEYCODE_BACKSPACE) {
-			e.preventDefault();
-			myGuess = myGuess.substr(0, myGuess.length - 1);
-			repaint();
-		}
-		else if (e.which === KEYCODE_RETURN) {
-			if (myGuess.length === 5) {
-				client.send("/app/guess", {}, myGuess);
-				myGuess = '';
-				repaint();
-			}
-		}
-	});
-}
-
-// characters
-function addKeypressListener() {
-	canvasDiv.addEventListener('keypress', function(e) {
-		var charCode = e.charCode;
-		if (isCharacter(charCode)) {
-			if (isCharacterLowercase(charCode)) {
-				charCode = charCode - 32;
-			}
-			var char = String.fromCharCode(charCode);
-			if (myGuess.length < 5) {
-				myGuess += char;
-				repaint();
-			}
-		}
-	});
-}
-
-function addChatMessageListener() {
-	var messageInput = document.getElementById('messageInput');
-	messageInput.addEventListener('keypress', function(e) {
-		if (e.which === KEYCODE_RETURN) {
-			// Shift+Enter -> new line
-			if (!e.shiftKey) {
-				e.preventDefault();
-				var text = messageInput.value.trim();
-				if (text.length === 0) {
-					return;
-				}
-				messageInput.value = '';
-				client.send('/app/chat', {}, text);
-				addChatMessage(myUsername, text);
-			}
-		}
-	});
+function addChatAnnouncement(body) {
+	addMessageItem({
+		body: body
+	})
 }
 
 function addChatMessage(sender, body) {
-	var messageList = document.getElementById('messageList');
-	var usernameNode = document.createElement('strong');
-	var usernameTextNode = document.createTextNode(sender);
-	usernameNode.appendChild(usernameTextNode);
-	var messageTextNode = document.createTextNode(' ' + body);
-	var messageItem = document.createElement('div');
-	messageItem.classList.add('message-item');
-	messageItem.appendChild(usernameNode);
-	messageItem.appendChild(messageTextNode);
-	addMessageItem(messageList, messageItem);
-}
-
-function addChatAnnouncement(body) {
-	var messageList = document.getElementById('messageList');
-	var messageTextNode = document.createTextNode(body);
-	var messageItem = document.createElement('div');
-	messageItem.classList.add('message-item');
-	messageItem.classList.add('log');
-	messageItem.appendChild(messageTextNode);
-	addMessageItem(messageList, messageItem);
+	addMessageItem({
+		sender: sender,
+		body: body
+	})
 }
 
 // Auto-scrolls the message list
-function addMessageItem(messageList, messageItem) {
-	if (!messageList.hasChildNodes()) {
-		messageItem.classList.add('first');
-	}
-	messageList.appendChild(messageItem);
+function addMessageItem(messageItem) {
+	vm.messages.push(messageItem);
+	var messageList = document.getElementById('messageList');
 	messageList.scrollTop = messageList.scrollHeight;
 }
 
@@ -258,7 +230,7 @@ function doHttpGet(url, callback) {
 
 function drawMyBoard() {
 	var x = 25, y = MARGIN_TOP;
-	drawUsername(x, y, myUsername);
+	drawUsername(x, y, vm.username);
 	drawScore(x, y, myScore);
 	drawInput(x, y, myGuess);
 	var yStart = drawGuesses(x, y, myGuesses, myResults);
@@ -395,6 +367,15 @@ function isValidResult(result) {
 	return true;
 }
 
+function getGame(gameId) {
+	for (var i = 0; i < vm.games.length; i++) {
+		if (vm.games[i].id === gameId) {
+			return vm.games[i];
+		}
+	}
+	return null;
+}
+
 function removeGame(gameId) {
 	var indexToRemove = null;
 	for (var i = 0; i < vm.games.length; i++) {
@@ -431,28 +412,13 @@ function reset(firstLetter, clearScore) {
 	}
 }
 
-function toggleView() {
-	var lobbyColumn = document.getElementById('lobbyColumn');
-	var gameColumn = document.getElementById('gameColumn')
-	if (lobbyColumn.classList.contains('primary')) {
-		lobbyColumn.classList.remove('primary');
-	} else {
-		lobbyColumn.classList.add('primary');
-	}
-	if (gameColumn.classList.contains('primary')) {
-		gameColumn.classList.remove('primary');
-	} else {
-		gameColumn.classList.add('primary');
-	}
-}
-
 function onChat(message) {
 	var chatMessage = JSON.parse(message.body);
 	var messageSender = chatMessage.username;
 	var messageBody = chatMessage.message;
 	if (messageSender === null) {
 		addChatAnnouncement(messageBody);
-	} else if (messageSender === myUsername) {
+	} else if (messageSender === vm.username) {
 		// Ignore messages sent by yourself
 	} else {
 		console.log('Message from ' + messageSender + ": " + messageBody);
@@ -464,10 +430,10 @@ function onGameClosed(message) {
 	var game = JSON.parse(message.body);
 	var gameId = game.id;
 	var playerOne = game.playerOne.username;
-	if (playerOne === myUsername) {
+	console.log(playerOne + ' closed Game ' + gameId);
+	if (playerOne === vm.username) {
 		vm.gameId = null;
 	}
-	console.log(playerOne + ' closed Game ' + gameId);
 	removeGame(gameId);
 }
 
@@ -475,11 +441,15 @@ function onGameHosted(message) {
 	var game = JSON.parse(message.body);
 	var gameId = game.id;
 	var playerOne = game.playerOne.username;
-	if (playerOne === myUsername) {
+	console.log(playerOne + ' hosted Game ' + gameId);
+	vm.games.push({
+		id: gameId,
+		playerOne: playerOne,
+		started: false
+	});
+	if (playerOne === vm.username) {
 		vm.gameId = gameId;
 	}
-	console.log(playerOne + ' hosted Game ' + gameId);
-	vm.games.push({ id: gameId, playerOne: playerOne, started: false });
 }
 
 function onGameJoined(message) {
@@ -487,9 +457,6 @@ function onGameJoined(message) {
 	var gameId = game.id;
 	var playerOne = game.playerOne.username;
 	var playerTwo = game.playerTwo.username;
-	if (playerTwo === myUsername) {
-		vm.gameId = gameId;
-	}
 	console.log(playerTwo + ' joined ' + playerOne + "'s game");
 	for (var i = 0; i < vm.games.length; i++) {
 		if (vm.games[i].id === gameId) {
@@ -498,8 +465,8 @@ function onGameJoined(message) {
 			break;
 		}
 	}
-	if (playerOne === myUsername || playerTwo === myUsername) {
-		toggleView();
+	if (playerTwo === vm.username) {
+		vm.gameId = gameId;
 	}
 }
 
@@ -509,6 +476,7 @@ function onGameLeft(message) {
 	var gameId = game.id;
 	var playerOne = game.playerOne.username;
 	var gameLeaver = report.gameLeaver.username;
+	console.log(gameLeaver + ' left ' + playerOne + "'s game");
 	var previousPlayers = [];
 	for (var i = 0; i < vm.games.length; i++) {
 		if (vm.games[i].id === gameId) {
@@ -520,13 +488,11 @@ function onGameLeft(message) {
 			break;
 		}
 	}
-	console.log(gameLeaver + ' left ' + playerOne + "'s game");
-	if (gameLeaver === myUsername) {
+	if (gameLeaver === vm.username) {
 		vm.gameId = null;
 	}
-	if (previousPlayers.indexOf(myUsername) != -1) {
+	if (previousPlayers.indexOf(vm.username) != -1) {
 		onOpponentLeft();
-		toggleView();
 	}
 }
 
@@ -534,9 +500,9 @@ function onGameStarted(message) {
 	var report = JSON.parse(message.body);
 	var playerOne = report[0];
 	var playerTwo = report[1];
-	if (playerOne === myUsername) {
+	if (playerOne === vm.username) {
 		addChatAnnouncement('You are playing with ' + playerTwo);
-	} else if (playerTwo === myUsername) {
+	} else if (playerTwo === vm.username) {
 		addChatAnnouncement('You are playing with ' + playerOne);
 	} else {
 		addChatAnnouncement(playerOne + ' is playing with ' + playerTwo);
@@ -549,14 +515,12 @@ function onOpponentJoined(message) {
 	opponentUsername = report[1];
 	console.log('Opponent username: ' + opponentUsername);
 	reset(firstLetter, true);
-	canvasDiv.classList.remove('hidden');
 	repaint();
 }
 
 function onOpponentLeft(message) {
 	opponentUsername = null;
 	lastWord = null;
-	canvasDiv.classList.add('hidden');
 	repaint();
 }
 
@@ -613,7 +577,7 @@ function onUserJoined(message) {
 	var report = JSON.parse(message.body);
 	var username = report[0];
 	var numUsers = report[1];
-	if (username === myUsername) {
+	if (username === vm.username) {
 		addChatAnnouncement('Welcome to Lingo!');
 		if (numUsers === 1) {
 			addChatAnnouncement('You are the only player online');

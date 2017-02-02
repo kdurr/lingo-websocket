@@ -9,6 +9,10 @@
 	display: none;
 }
 
+[v-cloak] {
+	display: none;
+}
+
 body {
 	font-family: sans-serif;
 	background: linen;
@@ -46,15 +50,15 @@ button:hover:disabled {
 	word-wrap: break-word;
 }
 
-.message-item.first {
-	border: none;
+.message-item:first-child {
+	border-top: none;
 }
 
 .log {
 	color: green;
 }
 
-#messageInput {
+.chat.column textarea {
 	width: 100%;
 	height: 100%;
 	font-size: 14px;
@@ -66,15 +70,15 @@ button:hover:disabled {
 	resize: none;
 }
 
-#messageInput::-webkit-input-placeholder {
+.chat.column textarea::-webkit-input-placeholder {
 	color: steelblue;
 }
 
-#messageInput::-moz-placeholder {
+.chat.column textarea::-moz-placeholder {
 	color: steelblue;
 }
 
-#messageInput:-ms-input-placeholder {
+.chat.column textarea:-ms-input-placeholder {
 	color: steelblue;
 }
 
@@ -102,10 +106,6 @@ button:hover:disabled {
 
 .list-group {
 	margin-bottom: 0;
-}
-
-.panel-heading+.list-group .list-group-item:first-item {
-	border-top-width: 0;
 }
 
 .panel>.list-group .list-group-item {

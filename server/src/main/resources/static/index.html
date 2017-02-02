@@ -8,19 +8,19 @@
 <script src="//cdnjs.cloudflare.com/ajax/libs/vue/2.1.10/vue.js"></script>
 </head>
 <body>
-  <div>
+  <div id="vue-app" v-cloak>
     <div class="main column">
       <div class="header row">Lingo</div>
       <div class="body row nofooter">
-        <div id="usernameDiv" class="form">
+        <div v-if="!username" class="form">
           <h2>What is your name?</h2>
-          <input id="nicknameInput" type="text" class="form-control" maxlength="16">
-          <p id="usernameError" class="error-message"></p>
+          <input id="nicknameInput" type="text" class="form-control" maxlength="16" autofocus>
+          <p class="error-message">{{ usernameError }}</p>
         </div>
-        <div id="appDiv" class="hidden">
-          <div id="lobbyColumn" class="lobby column primary">
-            <div id="vue-app" class="body row noheader nofooter scroll-y">
-              <div class="panel panel-default">
+        <div v-if="username">
+          <div v-bind:class="{ primary: !inStartedGame }" class="lobby column">
+            <div class="body row noheader nofooter scroll-y">
+              <div class="panel">
                 <div class="panel-heading">
                   <h3 class="panel-title">Games</h3>
                 </div>
@@ -40,9 +40,9 @@
               <button v-show="!inGame" @click="hostGame" type="button" class="create button">Create game</button>
             </div>
           </div>
-          <div id="gameColumn" class="game column">
+          <div v-bind:class="{ primary: inStartedGame }" class="game column">
             <div class="body row noheader nofooter">
-              <div id="canvasDiv" class="hidden">
+              <div v-show="inStartedGame" @keydown="onCanvasKeydown" @keypress="onCanvasKeypress">
                 <canvas id="canvas" class="centered" width="600" height="475" tabindex="1"></canvas>
               </div>
             </div>
@@ -52,9 +52,18 @@
     </div>
     <div class="chat column">
       <div class="header row">Chat</div>
-      <div id="messageList" class="body row scroll-y"></div>
+      <div id="messageList" class="body row scroll-y">
+        <template v-for="message in messages">
+          <div v-if="message.sender" class="message-item">
+            <strong>{{ message.sender }}</strong> {{ message.body }}
+          </div>
+          <div v-else class="log message-item">
+            {{ message.body }}
+          </div>
+        </template>
+      </div>
       <div class="footer row">
-        <textarea id="messageInput" placeholder="Send a message" tabindex="2"></textarea>
+        <textarea @keypress="onChatKeypress" placeholder="Send a message" tabindex="2"></textarea>
       </div>
     </div>
   </div>
