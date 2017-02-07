@@ -7,19 +7,6 @@ var SIDE = 50;
 var MARGIN_TOP = 100;
 var MARGIN_BOTTOM = 75;
 
-var myScore = 0;
-var myGuess;
-var myGuesses;
-var myProgress;
-var myResults;
-var opponentScore = 0;
-var opponentResults;
-var opponentUsername;
-var lastWord;
-
-var canvas = document.getElementById('canvas');
-var ctx = canvas.getContext('2d');
-
 var client;
 var sessionId = null;
 
@@ -30,18 +17,143 @@ var vm = new Vue({
 		gameId: null,
 		messages: [],
 		username: null,
-		usernameError: ''
+		usernameError: '',
+		myScore: 0,
+		myGuess: '',
+		myGuesses: [],
+		myProgress: [],
+		myResults: [],
+		opponentScore: 0,
+		opponentResults: [],
+		opponentUsername: null,
+		lastWord: null
 	},
 	computed: {
 		inGame: function() {
 			return this.gameId !== null;
 		},
 		inStartedGame: function() {
-			var game = getGame(this.gameId);
+			var game = this.getGame(this.gameId);
 			return game !== null && game.started === true;
 		}
 	},
 	methods: {
+		drawMyBoard: function(ctx) {
+			var x = 25, y = MARGIN_TOP;
+			this.drawUsername(ctx, x, y, this.username);
+			this.drawScore(ctx, x, y, this.myScore);
+			this.drawInput(ctx, x, y, this.myGuess);
+			var yStart = this.drawGuesses(ctx, x, y, this.myGuesses, this.myResults);
+			this.drawHint(ctx, x, yStart, this.myProgress);
+			this.drawGrid(ctx, x, y);
+		},
+		drawOpponentBoard: function(ctx) {
+			var x = 325, y = MARGIN_TOP;
+			this.drawUsername(ctx, x, y, this.opponentUsername);
+			this.drawScore(ctx, x, y, this.opponentScore);
+			this.drawResults(ctx, x, y, this.opponentResults);
+			this.drawGrid(ctx, x, y);
+		},
+		drawLastWord: function(canvas, ctx) {
+			if (this.lastWord) {
+				var x = canvas.width / 2;
+				var y = canvas.height - MARGIN_BOTTOM / 2;
+				ctx.fillStyle = 'black';
+				ctx.fillText('Previous word: ' + this.lastWord.toUpperCase(), x, y);
+			}
+		},
+		drawUsername: function(ctx, x, y, username) {
+			var usernameX = x + WIDTH / 2;
+			var usernameY = y - 60;
+			ctx.fillStyle = 'black';
+			ctx.fillText(username, usernameX, usernameY);
+		},
+		drawScore: function(ctx, x, y, score) {
+			var scoreX = x + WIDTH / 2;
+			var scoreY = y - 25;
+			ctx.fillStyle = 'black';
+			ctx.fillText(score, scoreX, scoreY);
+		},
+		drawGrid: function(ctx, xOrigin, yOrigin) {
+			ctx.beginPath();
+			for (var x = 0; x <= WIDTH; x += SIDE) {
+				ctx.moveTo(xOrigin + x, yOrigin);
+				ctx.lineTo(xOrigin + x, yOrigin + HEIGHT);
+			}
+			for (var y = 0; y <= HEIGHT; y += SIDE) {
+				ctx.moveTo(xOrigin, yOrigin + y);
+				ctx.lineTo(xOrigin + WIDTH, yOrigin +  y);
+			}
+			ctx.strokeStyle = 'black';
+			ctx.stroke();
+		},
+		drawInput: function(ctx, xOrigin, yOrigin, input) {
+			ctx.fillStyle = 'green';
+			var x = xOrigin + SIDE * 0.5;
+			var y = yOrigin + SIDE * 0.5;
+			for (var i = 0; i < input.length; i++) {
+				ctx.fillText(input[i], x, y);
+				x += SIDE;
+			}
+		},
+		drawGuesses: function(ctx, xOrigin, yOrigin, guesses, results) {
+			var y = yOrigin + SIDE * 1.5;
+			var numGuesses = Math.min(4, guesses.length);
+			for (var i = 0; i < numGuesses; i++) {
+				var x = xOrigin + SIDE * 0.5;
+				var guess = guesses[guesses.length - numGuesses + i];
+				var result = results[results.length - numGuesses + i];
+				for (var j = 0; j < 5; j++) {
+					if (result[j] === 1) {
+						ctx.fillStyle = 'yellow';
+						ctx.fillRect(x - SIDE * 0.5, y - SIDE * 0.5, SIDE, SIDE);
+					} else if (result[j] === 2) {
+						ctx.fillStyle = 'orange';
+						ctx.fillRect(x - SIDE * 0.5, y - SIDE * 0.5, SIDE, SIDE);
+					}
+					ctx.fillStyle = 'green';
+					ctx.fillText(guess[j], x, y);
+					x += SIDE;
+				}
+				y += SIDE;
+			}
+			return y;
+		},
+		drawResults: function(ctx, xOrigin, yOrigin, results) {
+			var y = yOrigin + SIDE * 1.5;
+			var numResults = Math.min(4, results.length);
+			for (var i = 0; i < numResults; i++) {
+				var x = xOrigin + SIDE * 0.5;
+				var result = results[results.length - numResults + i];
+				for (var j = 0; j < 5; j++) {
+					if (result[j] === 1) {
+						ctx.fillStyle = 'yellow';
+						ctx.fillRect(x - SIDE * 0.5, y - SIDE * 0.5, SIDE, SIDE);
+					} else if (result[j] === 2) {
+						ctx.fillStyle = 'orange';
+						ctx.fillRect(x - SIDE * 0.5, y - SIDE * 0.5, SIDE, SIDE);
+					}
+					x += SIDE;
+				}
+				y += SIDE;
+			}
+			return y;
+		},
+		drawHint: function(ctx, xOrigin, yOrigin, progress) {
+			var x = xOrigin + SIDE * 0.5;
+			for (var i = 0; i < 5; i++) {
+				ctx.fillText(progress[i], x, yOrigin);
+				x += SIDE;
+			}
+		},
+		getGame: function(gameId) {
+			for (var i = 0; i < this.games.length; i++) {
+				if (this.games[i].id === gameId) {
+					return this.games[i];
+				}
+			}
+			return null;
+		},
 		hostGame: function(event) {
 			client.send('/app/hostGame');
 		},
@@ -54,17 +166,27 @@ var vm = new Vue({
 		leaveGame: function(event) {
 			client.send('/app/leaveGame');
 		},
+		removeGame: function(gameId) {
+			var indexToRemove = null;
+			for (var i = 0; i < this.games.length; i++) {
+				if (this.games[i].id === gameId) {
+					indexToRemove = i;
+					break;
+				}
+			}
+			this.games.splice(indexToRemove, 1);
+		},
 		onCanvasKeydown: function(event) {
 			if (event.which === KEYCODE_BACKSPACE) {
 				event.preventDefault();
-				myGuess = myGuess.substr(0, myGuess.length - 1);
-				repaint();
+				this.myGuess = this.myGuess.substr(0, this.myGuess.length - 1);
+				this.repaint();
 			}
 			else if (event.which === KEYCODE_RETURN) {
-				if (myGuess.length === 5) {
-					client.send("/app/guess", {}, myGuess);
-					myGuess = '';
-					repaint();
+				if (this.myGuess.length === 5) {
+					client.send("/app/guess", {}, this.myGuess);
+					this.myGuess = '';
+					this.repaint();
 				}
 			}
 		},
@@ -75,9 +197,9 @@ var vm = new Vue({
 					charCode = charCode - 32;
 				}
 				var char = String.fromCharCode(charCode);
-				if (myGuess.length < 5) {
-					myGuess += char;
-					repaint();
+				if (this.myGuess.length < 5) {
+					this.myGuess += char;
+					this.repaint();
 				}
 			}
 		},
@@ -93,8 +215,33 @@ var vm = new Vue({
 					}
 					messageInput.value = '';
 					client.send('/app/chat', {}, text);
-					addChatMessage(vm.username, text);
+					addChatMessage(this.username, text);
 				}
+			}
+		},
+		repaint: function() {
+			var canvas = document.getElementById('canvas');
+			var ctx = canvas.getContext('2d');
+			ctx.font = '25px Monospace';
+			ctx.textBaseline = 'middle';
+			ctx.textAlign = 'center';
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			this.drawMyBoard(ctx);
+			this.drawOpponentBoard(ctx);
+			this.drawLastWord(canvas, ctx);
+		},
+		reset: function(firstLetter, clearScore) {
+			if (!firstLetter) {
+				firstLetter = '';
+			}
+			this.myGuess = '';
+			this.myGuesses = [];
+			this.myProgress = [firstLetter, '', '', '', ''];
+			this.myResults = [];
+			this.opponentResults = [];
+			if (clearScore) {
+				this.myScore = 0;
+				this.opponentScore = 0;
 			}
 		}
 	}
@@ -163,12 +310,6 @@ function main() {
 }
 
 function start() {
-	ctx.font = '25px Monospace';
-	ctx.textBaseline = 'middle';
-	ctx.textAlign = 'center';
-
-	reset();
-	repaint();
 
 	// Load initial data
 	doHttpGet('/games', function(games) {
@@ -228,124 +369,6 @@ function doHttpGet(url, callback) {
 	xhr.send();
 }
 
-function drawMyBoard() {
-	var x = 25, y = MARGIN_TOP;
-	drawUsername(x, y, vm.username);
-	drawScore(x, y, myScore);
-	drawInput(x, y, myGuess);
-	var yStart = drawGuesses(x, y, myGuesses, myResults);
-	drawHint(x, yStart, myProgress);
-	drawGrid(x, y);
-}
-
-function drawOpponentBoard() {
-	var x = 325, y = MARGIN_TOP;
-	drawUsername(x, y, opponentUsername);
-	drawScore(x, y, opponentScore);
-	drawResults(x, y, opponentResults);
-	drawGrid(x, y);
-}
-
-function drawLastWord() {
-	if (lastWord) {
-		var x = canvas.width / 2;
-		var y = canvas.height - MARGIN_BOTTOM / 2;
-		ctx.fillStyle = 'black';
-		ctx.fillText('Previous word: ' + lastWord.toUpperCase(), x, y);
-	}
-}
-
-function drawUsername(x, y, username) {
-	var usernameX = x + WIDTH / 2;
-	var usernameY = y - 60;
-	ctx.fillStyle = 'black';
-	ctx.fillText(username, usernameX, usernameY);
-}
-
-function drawScore(x, y, score) {
-	var scoreX = x + WIDTH / 2;
-	var scoreY = y - 25;
-	ctx.fillStyle = 'black';
-	ctx.fillText(score, scoreX, scoreY);
-}
-
-function drawGrid(xOrigin, yOrigin) {
-	ctx.beginPath();
-	for (var x = 0; x <= WIDTH; x += SIDE) {
-		ctx.moveTo(xOrigin + x, yOrigin);
-		ctx.lineTo(xOrigin + x, yOrigin + HEIGHT);
-	}
-	for (var y = 0; y <= HEIGHT; y += SIDE) {
-		ctx.moveTo(xOrigin, yOrigin + y);
-		ctx.lineTo(xOrigin + WIDTH, yOrigin +  y);
-	}
-	ctx.strokeStyle = 'black';
-	ctx.stroke();
-}
-
-function drawInput(xOrigin, yOrigin, input) {
-	ctx.fillStyle = 'green';
-	var x = xOrigin + SIDE * 0.5;
-	var y = yOrigin + SIDE * 0.5;
-	for (var i = 0; i < myGuess.length; i++) {
-		ctx.fillText(myGuess[i], x, y);
-		x += SIDE;
-	}
-}
-
-function drawGuesses(xOrigin, yOrigin, guesses, results) {
-	var y = yOrigin + SIDE * 1.5;
-	var numGuesses = Math.min(4, guesses.length);
-	for (var i = 0; i < numGuesses; i++) {
-		var x = xOrigin + SIDE * 0.5;
-		var guess = guesses[guesses.length - numGuesses + i];
-		var result = results[results.length - numGuesses + i];
-		for (var j = 0; j < 5; j++) {
-			if (result[j] === 1) {
-				ctx.fillStyle = 'yellow';
-				ctx.fillRect(x - SIDE * 0.5, y - SIDE * 0.5, SIDE, SIDE);
-			} else if (result[j] === 2) {
-				ctx.fillStyle = 'orange';
-				ctx.fillRect(x - SIDE * 0.5, y - SIDE * 0.5, SIDE, SIDE);
-			}
-			ctx.fillStyle = 'green';
-			ctx.fillText(guess[j], x, y);
-			x += SIDE;
-		}
-		y += SIDE;
-	}
-	return y;
-}
-
-function drawResults(xOrigin, yOrigin, results) {
-	var y = yOrigin + SIDE * 1.5;
-	var numResults = Math.min(4, results.length);
-	for (var i = 0; i < numResults; i++) {
-		var x = xOrigin + SIDE * 0.5;
-		var result = results[results.length - numResults + i];
-		for (var j = 0; j < 5; j++) {
-			if (result[j] === 1) {
-				ctx.fillStyle = 'yellow';
-				ctx.fillRect(x - SIDE * 0.5, y - SIDE * 0.5, SIDE, SIDE);
-			} else if (result[j] === 2) {
-				ctx.fillStyle = 'orange';
-				ctx.fillRect(x - SIDE * 0.5, y - SIDE * 0.5, SIDE, SIDE);
-			}
-			x += SIDE;
-		}
-		y += SIDE;
-	}
-	return y;
-}
-
-function drawHint(xOrigin, yOrigin, progress) {
-	var x = xOrigin + SIDE * 0.5;
-	for (var i = 0; i < 5; i++) {
-		ctx.fillText(progress[i], x, yOrigin);
-		x += SIDE;
-	}
-}
-
 function isCharacter(charCode) {
 	return isCharacterLowercase(charCode) || isCharacterUppercase(charCode);
 }
@@ -365,51 +388,6 @@ function isValidResult(result) {
 		}
 	}
 	return true;
-}
-
-function getGame(gameId) {
-	for (var i = 0; i < vm.games.length; i++) {
-		if (vm.games[i].id === gameId) {
-			return vm.games[i];
-		}
-	}
-	return null;
-}
-
-function removeGame(gameId) {
-	var indexToRemove = null;
-	for (var i = 0; i < vm.games.length; i++) {
-		if (vm.games[i].id === gameId) {
-			indexToRemove = i;
-			break;
-		}
-	}
-	vm.games.splice(indexToRemove, 1);
-}
-
-function repaint() {
-	// clear the canvas
-	ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-	// draw the components
-	drawMyBoard();
-	drawOpponentBoard();
-	drawLastWord();
-}
-
-function reset(firstLetter, clearScore) {
-	if (!firstLetter) {
-		firstLetter = '';
-	}
-	myGuess = '';
-	myGuesses = [];
-	myProgress = [firstLetter, '', '', '', ''];
-	myResults = [];
-	opponentResults = [];
-	if (clearScore) {
-		myScore = 0;
-		opponentScore = 0;
-	}
 }
 
 function onChat(message) {
@@ -434,7 +412,7 @@ function onGameClosed(message) {
 	if (playerOne === vm.username) {
 		vm.gameId = null;
 	}
-	removeGame(gameId);
+	vm.removeGame(gameId);
 }
 
 function onGameHosted(message) {
@@ -512,16 +490,16 @@ function onGameStarted(message) {
 function onOpponentJoined(message) {
 	var report = JSON.parse(message.body);
 	var firstLetter = report[0];
-	opponentUsername = report[1];
-	console.log('Opponent username: ' + opponentUsername);
-	reset(firstLetter, true);
-	repaint();
+	vm.opponentUsername = report[1];
+	console.log('Opponent username: ' + vm.opponentUsername);
+	vm.reset(firstLetter, true);
+	vm.repaint();
 }
 
 function onOpponentLeft(message) {
-	opponentUsername = null;
-	lastWord = null;
-	repaint();
+	vm.opponentUsername = null;
+	vm.lastWord = null;
+	vm.repaint();
 }
 
 function onOpponentReport(message) {
@@ -530,15 +508,15 @@ function onOpponentReport(message) {
 		var guess = report.guess;
 		var firstLetter = report.firstLetter;
 		console.log('Opponent guessed correctly! ' + guess);
-		opponentScore = opponentScore + 100;
-		lastWord = guess;
-		reset(firstLetter, false);
-		repaint();
+		vm.opponentScore = vm.opponentScore + 100;
+		vm.lastWord = guess;
+		vm.reset(firstLetter, false);
+		vm.repaint();
 	} else {
 		var result = report.result;
 		console.log('Opponent result: ' + result);
-		opponentResults.push(result);
-		repaint();
+		vm.opponentResults.push(result);
+		vm.repaint();
 	}
 }
 
@@ -549,27 +527,27 @@ function onPlayerReport(message) {
 		var guess = report.guess;
 		var firstLetter = report.firstLetter;
 		console.log('I guessed correctly!');
-		myScore = myScore + 100;
-		lastWord = guess;
-		reset(firstLetter, false);
-		repaint();
+		vm.myScore = vm.myScore + 100;
+		vm.lastWord = guess;
+		vm.reset(firstLetter, false);
+		vm.repaint();
 	} else {
 		var guess = report.guess;
 		var result = report.result;
 		console.log('My result: ' + result);
 		// TODO: use isValidResult function
 		if (result[0] === 9) {
-			myGuesses.push('-----');
+			vm.myGuesses.push('-----');
 		} else {
 			for (var i = 0; i < 5; i++) {
 				if (result[i] === 2) {
-					myProgress[i] = guess[i];
+					vm.myProgress[i] = guess[i];
 				}
 			}
-			myGuesses.push(guess);
+			vm.myGuesses.push(guess);
 		}
-		myResults.push(result);
-		repaint();
+		vm.myResults.push(result);
+		vm.repaint();
 	}
 }
 

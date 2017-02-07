@@ -12,12 +12,12 @@
     <div class="main column">
       <div class="header row">Lingo</div>
       <div class="body row nofooter">
-        <div v-if="!username" class="form">
+        <div v-show="!username" class="form">
           <h2>What is your name?</h2>
           <input id="nicknameInput" type="text" class="form-control" maxlength="16" autofocus>
           <p class="error-message">{{ usernameError }}</p>
         </div>
-        <div v-if="username">
+        <div v-show="username">
           <div v-bind:class="{ primary: !inStartedGame }" class="lobby column">
             <div class="body row noheader nofooter scroll-y">
               <div class="panel">
