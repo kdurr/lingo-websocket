@@ -32,8 +32,7 @@ public class WebSocketConfig extends AbstractWebSocketMessageBrokerConfigurer {
 
 	@Override
 	public void registerStompEndpoints(StompEndpointRegistry registry) {
-		// Allow all origins: for JSFiddle, lol
-		registry.addEndpoint("/stomp").setAllowedOrigins("*").withSockJS();
+		registry.addEndpoint("/stomp").withSockJS();
 	}
 
 }
