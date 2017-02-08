@@ -37,6 +37,19 @@ var vm = new Vue({
 			return game !== null && game.started === true;
 		}
 	},
+	directives: {
+		autoscroll: {
+			bind: function(element, binding) {
+				var observer = new MutationObserver(scrollToBottom);
+				var config = { childList: true };
+				observer.observe(element, config);
+
+				function scrollToBottom() {
+					element.scrollTop = element.scrollHeight;
+				}
+			}
+		}
+	},
 	methods: {
 		drawMyBoard: function(ctx) {
 			var x = 25, y = MARGIN_TOP;
@@ -338,23 +351,16 @@ function start() {
 }
 
 function addChatAnnouncement(body) {
-	addMessageItem({
+	vm.messages.push({
 		body: body
 	})
 }
 
 function addChatMessage(sender, body) {
-	addMessageItem({
+	vm.messages.push({
 		sender: sender,
 		body: body
 	})
-}
-
-// Auto-scrolls the message list
-function addMessageItem(messageItem) {
-	vm.messages.push(messageItem);
-	var messageList = document.getElementById('messageList');
-	messageList.scrollTop = messageList.scrollHeight;
 }
 
 function doHttpGet(url, callback) {

@@ -52,7 +52,7 @@
     </div>
     <div class="chat column">
       <div class="header row">Chat</div>
-      <div id="messageList" class="body row scroll-y">
+      <div v-autoscroll class="body row scroll-y">
         <template v-for="message in messages">
           <div v-if="message.sender" class="message-item">
             <strong>{{ message.sender }}</strong> {{ message.body }}
