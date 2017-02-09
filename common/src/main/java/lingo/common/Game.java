@@ -11,7 +11,6 @@ public class Game {
 	public static final int INCORRECT_POSITION = 1;
 	public static final int CORRECT_CHARACTER = 2;
 	public static final int WORD_LENGTH = 5;
-	public static final int[] INVALID_GUESS = new int[] { 9, 9, 9, 9, 9 };
 
 	private static final AtomicInteger idCounter = new AtomicInteger(0);
 
@@ -43,6 +42,10 @@ public class Game {
 		return -1;
 	}
 
+	private static int[] invalidGuess() {
+		return new int[] { 9, 9, 9, 9, 9 };
+	}
+
 	public static boolean isCorrect(int[] result) {
 		for (int i = 0; i < WORD_LENGTH; i++) {
 			if (result[i] != CORRECT_CHARACTER) {
@@ -54,7 +57,7 @@ public class Game {
 
 	public int[] evaluate(String guess) {
 		if (!acceptableGuesses.contains(guess)) {
-			return INVALID_GUESS;
+			return invalidGuess();
 		}
 
 		// the guess is acceptable
