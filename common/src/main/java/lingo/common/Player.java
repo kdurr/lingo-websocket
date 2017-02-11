@@ -1,7 +1,10 @@
 package lingo.common;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class Player {
 
+	@JsonIgnore
 	private final String sessionId;
 
 	private String username;
@@ -18,8 +21,8 @@ public class Player {
 		return username;
 	}
 
-	public void setUsername(String username) {
-		this.username = username;
+	public void setUsername(String value) {
+		this.username = value;
 	}
 
 	@Override
