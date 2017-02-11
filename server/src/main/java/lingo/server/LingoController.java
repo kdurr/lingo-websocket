@@ -154,6 +154,7 @@ public class LingoController {
 			// TODO: require the players to "ready up"
 			game.setAcceptableGuesses(wordRepo.getGuesses());
 			game.setPossibleWords(wordRepo.getWords());
+
 			final String firstWord = game.newGame();
 			final String firstLetter = String.valueOf(firstWord.charAt(0));
 			log.info("First word: {}", firstWord);
@@ -163,7 +164,6 @@ public class LingoController {
 			final String[] playerTwoMessage = new String[] { firstLetter, playerOne.getUsername() };
 			sendToPlayer(playerOne, Destinations.OPPONENT_JOINED, playerOneMessage);
 			sendToPlayer(playerTwo, Destinations.OPPONENT_JOINED, playerTwoMessage);
-			send(Destinations.GAME_STARTED, new String[] { playerOne.getUsername(), playerTwo.getUsername() });
 		}
 	}
 

@@ -343,7 +343,6 @@ function start() {
 	client.subscribe('/topic/gameHosted', onGameHosted);
 	client.subscribe('/topic/gameJoined', onGameJoined);
 	client.subscribe('/topic/gameLeft', onGameLeft);
-	client.subscribe('/topic/gameStarted', onGameStarted);
 	client.subscribe('/user/topic/opponentJoined', onOpponentJoined);
 	client.subscribe('/user/topic/opponentLeft', onOpponentLeft);
 	client.subscribe('/user/topic/opponentReports', onOpponentReport);
@@ -441,7 +440,11 @@ function onGameJoined(message) {
 	var gameId = game.id;
 	var playerOne = game.playerOne.username;
 	var playerTwo = game.playerTwo.username;
-	console.log(playerTwo + ' joined ' + playerOne + "'s game");
+
+	var message = playerTwo + ' joined ' + playerOne + "'s game"
+	console.log(message);
+	addChatAnnouncement(message);
+
 	for (var i = 0; i < vm.games.length; i++) {
 		if (vm.games[i].id === gameId) {
 			vm.games[i].playerTwo = playerTwo;
@@ -449,6 +452,7 @@ function onGameJoined(message) {
 			break;
 		}
 	}
+
 	if (playerTwo === vm.username) {
 		vm.gameId = gameId;
 	}
@@ -477,19 +481,6 @@ function onGameLeft(message) {
 	}
 	if (previousPlayers.indexOf(vm.username) != -1) {
 		onOpponentLeft();
-	}
-}
-
-function onGameStarted(message) {
-	var report = JSON.parse(message.body);
-	var playerOne = report[0];
-	var playerTwo = report[1];
-	if (playerOne === vm.username) {
-		addChatAnnouncement('You are playing with ' + playerTwo);
-	} else if (playerTwo === vm.username) {
-		addChatAnnouncement('You are playing with ' + playerOne);
-	} else {
-		addChatAnnouncement(playerOne + ' is playing with ' + playerTwo);
 	}
 }
 

@@ -12,8 +12,6 @@ public class Destinations {
 
 	public static final String GAME_LEFT = topicDestination("gameLeft");
 
-	public static final String GAME_STARTED = topicDestination("gameStarted");
-
 	public static final String OPPONENT_JOINED = topicDestination("opponentJoined");
 
 	public static final String OPPONENT_REPORTS = topicDestination("opponentReports");
