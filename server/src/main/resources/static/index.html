@@ -53,14 +53,10 @@
     <div class="chat column">
       <div class="header row">Chat</div>
       <div v-autoscroll class="body row scroll-y">
-        <template v-for="message in messages">
-          <div v-if="message.sender" class="message-item">
-            <strong>{{ message.sender }}</strong> {{ message.body }}
-          </div>
-          <div v-else class="log message-item">
-            {{ message.body }}
-          </div>
-        </template>
+        <div v-for="message in messages" class="message-item" :class="{ log: !message.sender }">
+          <strong v-if="message.sender">{{ message.sender }}</strong>
+          <span>{{ message.body }}</span>
+        </div>
       </div>
       <div class="footer row">
         <textarea @keypress="onChatKeypress" placeholder="Send a message" tabindex="2"></textarea>
