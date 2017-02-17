@@ -324,6 +324,11 @@ function main() {
 
 function start() {
 
+	// Request permission to show notifications
+	Notification.requestPermission().then(function(result) {
+		console.log('Notification permission: ' + result);
+	});
+
 	// Load initial data
 	doHttpGet('/games', function(games) {
 		for (var i = 0; i < games.length; i++) {
@@ -352,14 +357,16 @@ function start() {
 function addChatAnnouncement(body) {
 	vm.messages.push({
 		body: body
-	})
+	});
+	showNotification('Announcement', body);
 }
 
 function addChatMessage(sender, body) {
 	vm.messages.push({
 		sender: sender,
 		body: body
-	})
+	});
+	showNotification(sender, body);
 }
 
 function doHttpGet(url, callback) {
@@ -561,6 +568,27 @@ function onUserJoined(message) {
 		}
 	} else {
 		addChatAnnouncement(username + ' joined');
+	}
+}
+
+function canShowNotification() {
+	if (document.hidden === 'undefined' || document.hidden === false) {
+		return false;
+	}
+	return Notification.permission === 'granted';
+}
+
+function showNotification(messageSender, messageBody) {
+	if (canShowNotification()) {
+		var title = messageSender;
+		var options = {
+			body : messageBody,
+			icon : '/chat-bubble.png'
+		};
+		var notification = new Notification(title, options);
+		setTimeout(function() {
+			notification.close();
+		}, 3000);
 	}
 }
 
