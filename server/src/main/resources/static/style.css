@@ -48,6 +48,7 @@ button:hover:disabled {
 	position: relative;
 	overflow-wrap: break-word;
 	word-wrap: break-word;
+	white-space: pre-line;
 }
 
 .message-item:first-child {
