@@ -167,16 +167,16 @@ var vm = new Vue({
 			}
 			return null;
 		},
-		hostGame: function(event) {
+		hostGame: function(e) {
 			client.send('/app/hostGame');
 		},
-		joinGame: function(event) {
+		joinGame: function(e) {
 			// Discard 'game-' prefix
-			var buttonId = event.target.id;
+			var buttonId = e.target.id;
 			var gameId = buttonId.substr(5);
 			client.send('/app/joinGame', {}, gameId);
 		},
-		leaveGame: function(event) {
+		leaveGame: function(e) {
 			client.send('/app/leaveGame');
 		},
 		removeGame: function(gameId) {
@@ -189,13 +189,13 @@ var vm = new Vue({
 			}
 			this.games.splice(indexToRemove, 1);
 		},
-		onCanvasKeydown: function(event) {
-			if (event.which === KEYCODE_BACKSPACE) {
-				event.preventDefault();
+		onCanvasKeydown: function(e) {
+			if (e.which === KEYCODE_BACKSPACE) {
+				e.preventDefault();
 				this.myGuess = this.myGuess.substr(0, this.myGuess.length - 1);
 				this.repaint();
 			}
-			else if (event.which === KEYCODE_RETURN) {
+			else if (e.which === KEYCODE_RETURN) {
 				if (this.myGuess.length === 5) {
 					client.send("/app/guess", {}, this.myGuess);
 					this.myGuess = '';
@@ -203,8 +203,8 @@ var vm = new Vue({
 				}
 			}
 		},
-		onCanvasKeypress: function(event) {
-			var charCode = event.charCode;
+		onCanvasKeypress: function(e) {
+			var charCode = e.charCode;
 			if (isCharacter(charCode)) {
 				if (isCharacterLowercase(charCode)) {
 					charCode = charCode - 32;
@@ -216,12 +216,12 @@ var vm = new Vue({
 				}
 			}
 		},
-		onChatKeypress: function(event) {
-			var messageInput = event.target;
-			if (event.which === KEYCODE_RETURN) {
+		onChatKeypress: function(e) {
+			var messageInput = e.target;
+			if (e.which === KEYCODE_RETURN) {
 				// Shift+Enter -> new line
-				if (!event.shiftKey) {
-					event.preventDefault();
+				if (!e.shiftKey) {
+					e.preventDefault();
 					var text = messageInput.value.trim();
 					if (text.length === 0) {
 						return;
@@ -293,8 +293,8 @@ function main() {
 	};
 
 	usernameInput.addEventListener('keydown', function(e) {
-		if (event.keyCode === KEYCODE_RETURN) {
-			event.preventDefault();
+		if (e.keyCode === KEYCODE_RETURN) {
+			e.preventDefault();
 			if (sessionId === null) {
 				vm.usernameError = 'Not connected to server';
 				return;
