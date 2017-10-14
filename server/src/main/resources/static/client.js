@@ -275,7 +275,10 @@ function afterConnected(stompConnectedFrame) {
 function main() {
 
 	client = Stomp.over(new SockJS('/stomp'));
-	client.connect({}, afterConnected);
+	client.connect({}, afterConnected, function(errorMessage) {
+		addChatAnnouncement(errorMessage);
+		addChatAnnouncement('Please reload the page!');
+	});
 
 	var usernameInput = document.getElementById('nicknameInput');
 
