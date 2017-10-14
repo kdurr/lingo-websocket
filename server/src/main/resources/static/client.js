@@ -274,7 +274,12 @@ function afterConnected(stompConnectedFrame) {
 
 function main() {
 
-	client = Stomp.over(new SockJS('/stomp'));
+	let webSocketProtocol = 'ws';
+	if (location.protocol.startsWith('https')) {
+		webSocketProtocol = 'wss';
+	}
+
+	client = Stomp.client(`${webSocketProtocol}://${location.host}/stomp`);
 	client.connect({}, afterConnected, function(errorMessage) {
 		addChatAnnouncement(errorMessage);
 		addChatAnnouncement('Please reload the page!');

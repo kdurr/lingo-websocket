@@ -32,7 +32,12 @@ function start() {
 	reset();
 	repaint();
 
-	client = Stomp.over(new SockJS('/stomp'));
+	let webSocketProtocol = 'ws';
+	if (location.protocol.startsWith('https')) {
+		webSocketProtocol = 'wss';
+	}
+
+	client = Stomp.client(`${webSocketProtocol}://${location.host}/stomp`);
 
 	client.connect({}, function(frame) {
 		subscribeToPracticeGame();
