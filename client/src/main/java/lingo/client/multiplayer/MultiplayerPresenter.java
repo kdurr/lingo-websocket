@@ -303,7 +303,7 @@ public class MultiplayerPresenter implements FxmlController {
 			final int[] result = report.getResult();
 			log.info("My result: " + Arrays.toString(result));
 			Platform.runLater(() -> {
-				if (Arrays.equals(result, Game.INVALID_GUESS)) {
+				if (Game.isInvalid(result)) {
 					playerBoard.addGuess("-----");
 				} else {
 					for (int i = 0; i < Game.WORD_LENGTH; i++) {
