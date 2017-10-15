@@ -18,7 +18,7 @@
 				<VBox spacing="20" alignment="CENTER">
 					<children>
 						<Button text="Practice" onAction="#showSinglePlayer" prefWidth="350" styleClass="game-mode" />
-						<Button text="Multiplayer" onAction="#showMultiplayer" prefWidth="350" styleClass="game-mode" />
+						<Button text="Multiplayer" onAction="#showMultiplayer" prefWidth="350" styleClass="game-mode" disable="true" />
 					</children>
 				</VBox>
 			</center>

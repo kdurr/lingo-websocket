@@ -156,8 +156,8 @@ public class MultiplayerPresenter implements FxmlController {
 		executorService.execute(() -> {
 			stompTemplate.subscribe("/user" + Destinations.OPPONENT_JOINED, new OpponentJoinedHandler(),
 					subscription -> subscriptionsLatch.countDown());
-			stompTemplate.subscribe("/user" + Destinations.OPPONENT_LEFT, new OpponentLeftHandler(),
-					subscription -> subscriptionsLatch.countDown());
+			//stompTemplate.subscribe("/user" + Destinations.OPPONENT_LEFT, new OpponentLeftHandler(),
+			//		subscription -> subscriptionsLatch.countDown());
 			stompTemplate.subscribe("/user" + Destinations.OPPONENT_REPORTS, new OpponentReportHandler(),
 					subscription -> subscriptionsLatch.countDown());
 			stompTemplate.subscribe("/user" + Destinations.PLAYER_REPORTS, new PlayerReportHandler(),
