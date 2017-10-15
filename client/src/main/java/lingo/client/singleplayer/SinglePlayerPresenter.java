@@ -24,6 +24,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.TextAlignment;
 import lingo.client.view.PlayerBoard;
 import lingo.common.Game;
+import lingo.common.Player;
 import lingo.common.Report;
 
 public class SinglePlayerPresenter {
@@ -63,7 +64,9 @@ public class SinglePlayerPresenter {
 		contentPane.getChildren().add(backButton);
 
 		gameBoard = new PlayerBoard(canvas, 200, 60);
-		game = new Game(null, null, words, guesses);
+		game = new Game(new Player("solo"));
+		game.setAcceptableGuesses(guesses);
+		game.setPossibleWords(words);
 	}
 
 	private void clearBoards(boolean clearScore) {
